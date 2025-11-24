@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: ghcr.io/hkhr-project/ai-evaluation-frontend:latest
+    container_name: ai-evaluation-frontend-prod
+    restart: always
+    ports:
+      - "80:8080"
+      - "443:8443"
+    environment:
+      - NODE_ENV=production
+      - VITE_APP_ENV=production
+      - VITE_API_BASE_URL=https://api.hkhr-evaluation.com
+      - VITE_WS_URL=wss://api.hkhr-evaluation.com
+      - VITE_SENTRY_DSN=${SENTRY_DSN}
+    volumes:
+      - ./nginx/prod.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+      - nginx-cache:/var/cache/nginx
+    networks:
+      - hkhr-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  hkhr-network:
+    external: true
+
+volumes:
+  nginx-logs:
+    driver: local
+  nginx-cache:
+    driver: local

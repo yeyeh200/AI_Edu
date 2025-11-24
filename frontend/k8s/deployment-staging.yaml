@@ -1,0 +1,193 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hkhr-evaluation-frontend-staging
+  namespace: hkhr-evaluation-staging
+  labels:
+    app: hkhr-evaluation-frontend-staging
+    version: v1.0.0
+    environment: staging
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: hkhr-evaluation-frontend-staging
+  template:
+    metadata:
+      labels:
+        app: hkhr-evaluation-frontend-staging
+        version: v1.0.0
+        environment: staging
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+      containers:
+      - name: frontend
+        image: ghcr.io/hkhr-project/ai-evaluation-frontend:staging
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "staging"
+        - name: VITE_APP_ENV
+          value: "staging"
+        - name: VITE_API_BASE_URL
+          value: "https://api-staging.hkhr-evaluation.com"
+        - name: VITE_WS_URL
+          value: "wss://api-staging.hkhr-evaluation.com"
+        - name: VITE_APP_VERSION
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: app-version
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 101
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+          readOnly: true
+        - name: cache
+          mountPath: /var/cache/nginx
+        - name: logs
+          mountPath: /var/log/nginx
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config-staging
+      - name: cache
+        emptyDir: {}
+      - name: logs
+        emptyDir: {}
+      imagePullSecrets:
+      - name: ghcr-secret
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hkhr-evaluation-frontend-staging-service
+  namespace: hkhr-evaluation-staging
+  labels:
+    app: hkhr-evaluation-frontend-staging
+    service-type: frontend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: hkhr-evaluation-frontend-staging
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hkhr-evaluation-frontend-staging-ingress
+  namespace: hkhr-evaluation-staging
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+spec:
+  tls:
+  - hosts:
+    - staging.hkhr-evaluation.com
+    secretName: hkhr-evaluation-staging-tls
+  rules:
+  - host: staging.hkhr-evaluation.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: hkhr-evaluation-frontend-staging-service
+            port:
+              number: 80
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hkhr-evaluation-frontend-staging-hpa
+  namespace: hkhr-evaluation-staging
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hkhr-evaluation-frontend-staging
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: hkhr-evaluation-frontend-staging-metrics
+  namespace: hkhr-evaluation-staging
+  labels:
+    app: hkhr-evaluation-frontend-staging
+spec:
+  selector:
+    matchLabels:
+      app: hkhr-evaluation-frontend-staging
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 60s
+    scrapeTimeout: 15s

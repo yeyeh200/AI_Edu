@@ -1,0 +1,60 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"],
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+  "fmt": {
+    "files": {
+      "include": ["src/", "tests/", "docs/"]
+    }
+  },
+  "tasks": {
+    "dev": "deno run --allow-net --allow-env --allow-read --allow-write --watch src/main.ts",
+    "start": "deno run --allow-net --allow-env --allow-read --allow-write src/main.ts",
+    "test": "deno test --allow-net --allow-env --allow-read",
+    "test:coverage": "deno test --allow-net --allow-env --allow-read --coverage",
+    "test:auth": "deno run --allow-net --allow-env --allow-read test_auth.ts",
+    "test:zhijiaoyun": "deno run --allow-net --allow-env --allow-read test_zhijiaoyun.ts",
+    "test:dataCollection": "deno run --allow-net --allow-env --allow-read test_dataCollection.ts",
+    "test:dataCleaning": "deno run --allow-net --allow-env --allow-read test_dataCleaning.ts",
+    "test:aiAnalysis": "deno run --allow-net --allow-env --allow-read test_aiAnalysis.ts",
+    "test:evaluationMetrics": "deno run --allow-net --allow-env --allow-read test_evaluationMetrics.ts",
+    "lint": "deno lint",
+    "fmt": "deno fmt",
+    "check": "deno check src/main.ts"
+  },
+  "imports": {
+    "hono": "https://deno.land/x/hono@v3.11.7/mod.ts",
+    "hono/router": "https://deno.land/x/hono@v3.11.7/router.ts",
+    "hono/middleware": "https://deno.land/x/hono@v3.11.7/middleware.ts",
+    "hono/validator": "https://deno.land/x/hono@v3.11.7/validator.ts",
+    "postgres": "https://deno.land/x/postgres@v0.19.3/mod.ts",
+    "bcrypt": "https://deno.land/x/bcrypt@v0.4.1/mod.ts",
+    "jwt": "https://deno.land/x/djwt@v3.0.1/mod.ts",
+    "zod": "https://deno.land/x/zod@v3.22.4/mod.ts",
+    "dotenv": "https://deno.land/std@0.208.0/dotenv/mod.ts",
+    "logger": "https://deno.land/std@0.208.0/log/mod.ts",
+    "@/": "./src/"
+  },
+  "scopes": {}
+}

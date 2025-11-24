@@ -1,0 +1,225 @@
+@tailwind utilities;
+
+/* Additional global styles */
+#root {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Remove default focus styles for mouse users */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid theme('colors.primary.500');
+  outline-offset: 2px;
+}
+
+button:not(:focus-visible),
+input:not(:focus-visible),
+select:not(:focus-visible),
+textarea:not(:focus-visible) {
+  outline: none;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .card {
+    border: 2px solid theme('colors.gray.900');
+  }
+
+  .btn {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  body {
+    @apply bg-gray-900 text-gray-100;
+  }
+
+  .card {
+    @apply bg-gray-800 border-gray-700;
+  }
+
+  .table th {
+    @apply text-gray-300;
+  }
+
+  .table td {
+    @apply text-gray-300;
+  }
+
+  .modal-content {
+    @apply bg-gray-800;
+  }
+}
+
+/* Custom component overrides */
+.react-select__control {
+  @apply border-gray-300;
+}
+
+.react-select__control--is-focused {
+  @apply border-primary-500 ring-1 ring-primary-500;
+}
+
+.react-datepicker__input-container input {
+  @apply border-gray-300;
+}
+
+.react-datepicker__input-container input:focus {
+  @apply border-primary-500 ring-1 ring-primary-500;
+}
+
+/* Chart styles */
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+
+.recharts-default-tooltip {
+  @apply bg-gray-900 text-white border-gray-700 rounded-lg shadow-lg;
+}
+
+.recharts-legend-wrapper {
+  @apply text-sm;
+}
+
+/* Table responsive styles */
+.table-responsive {
+  @apply overflow-x-auto;
+}
+
+.table-responsive .table {
+  @apply min-w-full;
+}
+
+/* Navigation styles */
+.nav-link {
+  @apply flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors;
+}
+
+.nav-link.active {
+  @apply text-primary-600 bg-primary-50;
+}
+
+/* Form validation styles */
+.form-input-error {
+  @apply border-red-500 focus:border-red-500 focus:ring-red-500;
+}
+
+.form-input-success {
+  @apply border-green-500 focus:border-green-500 focus:ring-green-500;
+}
+
+/* Status indicator styles */
+.status-indicator {
+  @apply inline-flex items-center;
+}
+
+.status-indicator::before {
+  content: '';
+  @apply w-2 h-2 rounded-full mr-2;
+}
+
+.status-indicator.online::before {
+  @apply bg-green-500;
+}
+
+.status-indicator.offline::before {
+  @apply bg-gray-400;
+}
+
+.status-indicator.busy::before {
+  @apply bg-yellow-500;
+}
+
+.status-indicator.error::before {
+  @apply bg-red-500;
+}
+
+/* Loading states */
+.loading-dots span {
+  @apply inline-block w-2 h-2 mx-1 bg-gray-400 rounded-full;
+  animation: dot-pulse 1.4s infinite ease-in-out both;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dot-pulse {
+  0%, 60%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1.2);
+    opacity: 0.5;
+  }
+}
+
+/* Number input styles */
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Search input styles */
+.search-input {
+  @apply pl-10 bg-gray-50 border-gray-300;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: left 0.75rem center;
+  background-size: 1rem 1rem;
+}
+
+/* File input styles */
+.file-input {
+  @apply file:mr-4 file:py-2 file:px-4;
+  @apply file:rounded-md file:border-0 file:text-sm file:font-semibold;
+  @apply file:bg-primary-50 file:text-primary-700;
+  @apply hover:file:bg-primary-100;
+}
+
+/* Print optimizations */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+
+  .print-break-after {
+    page-break-after: always;
+  }
+}

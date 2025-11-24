@@ -1,0 +1,68 @@
+# Artillery Performance Test Configuration
+config:
+  target: 'http://localhost:3000'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up"
+    - duration: 120
+      arrivalRate: 10
+      name: "Load test"
+    - duration: 60
+      arrivalRate: 20
+      name: "Stress test"
+    - duration: 60
+      arrivalRate: 5
+      name: "Cool down"
+
+scenarios:
+  - name: "Load Dashboard"
+    weight: 40
+    flow:
+      - get:
+          url: "/"
+          name: "Load main page"
+          expect:
+            - statusCode: 200
+            - contentType: text/html
+
+  - name: "API Performance"
+    weight: 30
+    flow:
+      - get:
+          url: "/api/dashboard/stats"
+          name: "Get dashboard stats"
+          expect:
+            - statusCode: 200
+            - contentType: application/json
+
+      - get:
+          url: "/api/teachers"
+          name: "Get teachers list"
+          expect:
+            - statusCode: 200
+            - contentType: application/json
+
+  - name: "Chart Performance"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/analytics/trends"
+          name: "Get analytics trends"
+          expect:
+            - statusCode: 200
+            - contentType: application/json
+
+  - name: "Form Performance"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/evaluations/search"
+          json:
+            page: 1
+            limit: 20
+            filters: {}
+          name: "Search evaluations"
+          expect:
+            - statusCode: 200
+            - contentType: application/json

@@ -1,0 +1,83 @@
+name: Code Quality Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for better analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Type Check
+        working-directory: ./frontend
+        run: npm run type-check
+
+      - name: ESLint Check
+        working-directory: ./frontend
+        run: npm run lint -- --format=json --output-file=eslint-report.json
+        continue-on-error: true
+
+      - name: Prettier Check
+        working-directory: ./frontend
+        run: npm run format:check
+
+      - name: Analyze Bundle Size
+        working-directory: ./frontend
+        run: |
+          npm run build
+          npx bundlesize
+
+      - name: Security Audit
+        working-directory: ./frontend
+        run: npm audit --audit-level=high
+
+      - name: Code Coverage
+        working-directory: ./frontend
+        run: npm run test:coverage
+
+      - name: Upload Coverage Reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./frontend/coverage/lcov.info
+          flags: frontend
+          name: frontend-coverage
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v3
+        with:
+          fail-on-severity: moderate
+
+      - name: Upload Quality Reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: quality-reports
+          path: |
+            frontend/eslint-report.json
+            frontend/coverage/
+            frontend/dist/stats.html

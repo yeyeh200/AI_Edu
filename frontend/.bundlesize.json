@@ -1,0 +1,29 @@
+{
+  "files": [
+    {
+      "path": "dist/js/*.js",
+      "maxSize": "500kb",
+      "compression": "gzip"
+    },
+    {
+      "path": "dist/css/*.css",
+      "maxSize": "50kb",
+      "compression": "gzip"
+    },
+    {
+      "path": "dist/js/react-vendor-*.js",
+      "maxSize": "200kb",
+      "compression": "gzip"
+    },
+    {
+      "path": "dist/js/charts-vendor-*.js",
+      "maxSize": "150kb",
+      "compression": "gzip"
+    },
+    {
+      "path": "dist/js/utils-vendor-*.js",
+      "maxSize": "100kb",
+      "compression": "gzip"
+    }
+  ]
+}

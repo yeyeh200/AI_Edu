@@ -1,0 +1,50 @@
+# 构建阶段
+FROM denoland/deno:1.38.0 AS builder
+
+WORKDIR /app
+
+# 复制配置文件
+COPY deno.json ./
+COPY import_map.json ./
+
+# 安装依赖
+RUN deno cache --lock=deno.lock src/main.ts
+
+# 复制源代码
+COPY src/ ./src/
+COPY config/ ./config/
+
+# 生产阶段
+FROM denoland/deno:1.38.0-alpine AS production
+
+# 安装必要的系统依赖
+RUN apk add --no-cache \
+    curl \
+    ca-certificates \
+    && rm -rf /var/cache/apk/*
+
+WORKDIR /app
+
+# 创建应用用户
+RUN addgroup -g 1001 -S deno && \
+    adduser -S deno -u 1001
+
+# 复制构建结果
+COPY --from=builder --chown=deno:deno /app ./
+
+# 创建必要的目录
+RUN mkdir -p logs uploads && \
+    chown -R deno:deno logs uploads
+
+# 切换到非root用户
+USER deno
+
+# 暴露端口
+EXPOSE 8000
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# 启动应用
+CMD ["deno", "task", "start"]

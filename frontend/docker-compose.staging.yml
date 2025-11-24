@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: ghcr.io/hkhr-project/ai-evaluation-frontend:latest
+    container_name: ai-evaluation-frontend-staging
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    environment:
+      - NODE_ENV=staging
+      - VITE_APP_ENV=staging
+      - VITE_API_BASE_URL=https://api-staging.hkhr-evaluation.com
+      - VITE_WS_URL=wss://api-staging.hkhr-evaluation.com
+    volumes:
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - hkhr-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  hkhr-network:
+    external: true
+
+volumes:
+  nginx-logs:
+    driver: local
