@@ -7,6 +7,7 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { DataCleaningService } from '@/services/dataCleaningService.ts'
+import { DatabaseService } from '@/services/databaseService.ts'
 import { DataQualityRulesService } from '@/services/dataQualityRulesService.ts'
 import { authMiddleware, adminMiddleware } from '@/middleware/auth'
 import { ApiResponse } from '@/types'
@@ -22,6 +23,7 @@ import {
 
 const dataCleaning = new Hono()
 const cleaningService = new DataCleaningService()
+const dbService = new DatabaseService()
 const rulesService = new DataQualityRulesService()
 
 // 验证schemas
@@ -176,7 +178,26 @@ dataCleaning.post('/tasks', adminMiddleware, zValidator('json', taskSchema), asy
       updatedAt: new Date().toISOString()
     }
 
-    // TODO: 保存任务到数据库
+    await dbService.executeSql(
+      `INSERT INTO cleaning_tasks (id, name, description, table_name, enabled, status, progress, total_records, processed_records, issues_found, issues_resolved, errors, warnings, configuration, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`,
+      [
+        task.id,
+        task.name,
+        task.description || '',
+        task.tableName,
+        task.enabled,
+        task.status,
+        task.progress,
+        task.totalRecords,
+        task.processedRecords,
+        task.issuesFound,
+        task.issuesResolved,
+        JSON.stringify(task.errors),
+        JSON.stringify(task.warnings),
+        JSON.stringify({ fieldDefinitions: task.fieldDefinitions, cleaningRules: task.cleaningRules || [] }),
+      ]
+    )
 
     const response: ApiResponse = {
       success: true,
@@ -198,8 +219,35 @@ dataCleaning.post('/tasks', adminMiddleware, zValidator('json', taskSchema), asy
 
 dataCleaning.get('/tasks', authMiddleware, async (c) => {
   try {
-    // TODO: 从数据库获取任务列表
-    const tasks: CleaningTask[] = []
+    const rows = await dbService.query<any>(`SELECT * FROM cleaning_tasks ORDER BY created_at DESC LIMIT 100`)
+    const tasks: CleaningTask[] = rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      tableName: r.table_name,
+      enabled: r.enabled,
+      status: r.status,
+      progress: r.progress,
+      totalRecords: r.total_records,
+      processedRecords: r.processed_records,
+      issuesFound: r.issues_found,
+      issuesResolved: r.issues_resolved,
+      errors: r.errors || [],
+      warnings: r.warnings || [],
+      cleaningRules: (r.configuration?.cleaningRules) || [],
+      fieldDefinitions: (r.configuration?.fieldDefinitions) || [],
+      statistics: {
+        totalRecords: r.total_records,
+        processedRecords: r.processed_records,
+        skippedRecords: 0,
+        issuesFound: {},
+        issuesResolved: {},
+        operationsApplied: {},
+        qualityScore: { before: 0, after: 0, improvement: 0 }
+      },
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }))
 
     const response: ApiResponse = {
       success: true,
@@ -223,8 +271,36 @@ dataCleaning.get('/tasks/:taskId', authMiddleware, async (c) => {
   try {
     const taskId = c.req.param('taskId')
 
-    // TODO: 从数据库获取任务详情
-    const task = null
+    const rows = await dbService.query<any>(`SELECT * FROM cleaning_tasks WHERE id = $1`, [taskId])
+    const r = rows[0]
+    const task: CleaningTask | null = r ? {
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      tableName: r.table_name,
+      enabled: r.enabled,
+      status: r.status,
+      progress: r.progress,
+      totalRecords: r.total_records,
+      processedRecords: r.processed_records,
+      issuesFound: r.issues_found,
+      issuesResolved: r.issues_resolved,
+      errors: r.errors || [],
+      warnings: r.warnings || [],
+      cleaningRules: (r.configuration?.cleaningRules) || [],
+      fieldDefinitions: (r.configuration?.fieldDefinitions) || [],
+      statistics: {
+        totalRecords: r.total_records,
+        processedRecords: r.processed_records,
+        skippedRecords: 0,
+        issuesFound: {},
+        issuesResolved: {},
+        operationsApplied: {},
+        qualityScore: { before: 0, after: 0, improvement: 0 }
+      },
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    } : null
 
     if (!task) {
       const response: ApiResponse = {
@@ -257,8 +333,36 @@ dataCleaning.post('/tasks/:taskId/execute', adminMiddleware, async (c) => {
   try {
     const taskId = c.req.param('taskId')
 
-    // TODO: 从数据库获取任务
-    const task = null
+    const rows = await dbService.query<any>(`SELECT * FROM cleaning_tasks WHERE id = $1`, [taskId])
+    const r = rows[0]
+    const task: CleaningTask | null = r ? {
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      tableName: r.table_name,
+      enabled: r.enabled,
+      status: r.status,
+      progress: r.progress,
+      totalRecords: r.total_records,
+      processedRecords: r.processed_records,
+      issuesFound: r.issues_found,
+      issuesResolved: r.issues_resolved,
+      errors: r.errors || [],
+      warnings: r.warnings || [],
+      cleaningRules: (r.configuration?.cleaningRules) || [],
+      fieldDefinitions: (r.configuration?.fieldDefinitions) || [],
+      statistics: {
+        totalRecords: r.total_records,
+        processedRecords: r.processed_records,
+        skippedRecords: 0,
+        issuesFound: {},
+        issuesResolved: {},
+        operationsApplied: {},
+        qualityScore: { before: 0, after: 0, improvement: 0 }
+      },
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    } : null
 
     if (!task) {
       const response: ApiResponse = {
@@ -271,7 +375,10 @@ dataCleaning.post('/tasks/:taskId/execute', adminMiddleware, async (c) => {
 
     const result = await cleaningService.executeCleaningTask(task)
 
-    // TODO: 更新任务状态到数据库
+    await dbService.executeSql(
+      `UPDATE cleaning_tasks SET status = $2, progress = $3, total_records = $4, processed_records = $5, issues_found = $6, issues_resolved = $7, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [taskId, result.status, result.progress || 100, result.totalRecords || 0, result.processedRecords || 0, result.issuesFound || 0, result.issuesResolved || 0]
+    )
 
     const response: ApiResponse = {
       success: true,

@@ -7,6 +7,7 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { EvaluationCalculator } from '@/services/evaluationCalculator.ts'
+import { DatabaseService } from '@/services/databaseService.ts'
 import { authMiddleware, adminMiddleware } from '@/middleware/auth'
 import { ApiResponse } from '@/types'
 import {
@@ -24,6 +25,7 @@ import {
 
 const evaluationMetrics = new Hono()
 const calculator = new EvaluationCalculator()
+const dbService = new DatabaseService()
 
 // 查询参数验证schemas
 const paginationSchema = z.object({
@@ -331,6 +333,14 @@ evaluationMetrics.post('/calculate', authMiddleware, zValidator('json', calculat
       context
     )
 
+    // 持久化结果
+    try {
+      await dbService.executeSql(
+        `INSERT INTO evaluation_results (id, evaluatee_id, evaluatee_type, overall_score, level, dimensions, context, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,CURRENT_TIMESTAMP)`,
+        [result.id || crypto.randomUUID(), requestData.evaluateeId, requestData.evaluateeType, result.overallScore, result.level, JSON.stringify(result.dimensions || {}), JSON.stringify(context)]
+      )
+    } catch (_) {}
+
     const response: ApiResponse = {
       success: true,
       data: result,
@@ -420,9 +430,25 @@ evaluationMetrics.get('/results', authMiddleware, zValidator('query', evaluation
   try {
     const params = c.req.valid('query')
 
-    // TODO: 实现结果查询逻辑
-    const results: OverallEvaluationResult[] = []
-    const total = 0
+    const filters: string[] = []
+    const values: any[] = []
+    let idx = 1
+    if (params.evaluateeId) { filters.push(`evaluatee_id = $${idx++}`); values.push(params.evaluateeId) }
+    if (params.evaluateeType) { filters.push(`evaluatee_type = $${idx++}`); values.push(params.evaluateeType) }
+    const where = filters.length ? `WHERE ${filters.join(' AND ')}` : ''
+    const offset = (params.page - 1) * params.pageSize
+    const rows = await dbService.query<any>(`SELECT * FROM evaluation_results ${where} ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`, [...values, params.pageSize, offset])
+    const totalRows = await dbService.query<{ count: number }>(`SELECT COUNT(*)::int as count FROM evaluation_results ${where}`, values)
+    const results: OverallEvaluationResult[] = rows.map(r => ({
+      id: r.id,
+      evaluateeId: r.evaluatee_id,
+      evaluateeType: r.evaluatee_type,
+      overallScore: Number(r.overall_score || 0),
+      level: r.level || 'average',
+      dimensions: r.dimensions || {},
+      createdAt: r.created_at,
+    } as any))
+    const total = totalRows[0]?.count || 0
 
     const response: ApiResponse = {
       success: true,
@@ -451,9 +477,17 @@ evaluationMetrics.get('/results', authMiddleware, zValidator('query', evaluation
 evaluationMetrics.get('/results/:resultId', authMiddleware, async (c) => {
   try {
     const resultId = c.req.param('resultId')
-
-    // TODO: 实现获取单个结果逻辑
-    const result = null
+    const rows = await dbService.query<any>(`SELECT * FROM evaluation_results WHERE id = $1`, [resultId])
+    const r = rows[0]
+    const result: OverallEvaluationResult | null = r ? ({
+      id: r.id,
+      evaluateeId: r.evaluatee_id,
+      evaluateeType: r.evaluatee_type,
+      overallScore: Number(r.overall_score || 0),
+      level: r.level || 'average',
+      dimensions: r.dimensions || {},
+      createdAt: r.created_at,
+    } as any) : null
 
     if (!result) {
       const response: ApiResponse = {

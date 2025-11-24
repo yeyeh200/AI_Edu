@@ -45,7 +45,10 @@ export class ZhijiaoyunService {
   /**
    * 生成API签名
    */
-  private generateSignature(params: ZhijiaoyunApiParams, timestamp: number): string {
+  /**
+   * 生成API签名
+   */
+  private async generateSignature(params: ZhijiaoyunApiParams, timestamp: number): Promise<string> {
     // 按照职教云API规范生成签名
     const sortedParams = Object.keys(params)
       .sort()
@@ -57,9 +60,9 @@ export class ZhijiaoyunService {
     // 使用SHA-256生成签名
     const encoder = new TextEncoder()
     const data = encoder.encode(signString)
-    const hash = crypto.subtle.digest('SHA-256', data)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
 
-    return Array.from(new Uint8Array(hash))
+    return Array.from(new Uint8Array(hashBuffer))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('')
       .toLowerCase()
@@ -74,7 +77,7 @@ export class ZhijiaoyunService {
     params: ZhijiaoyunApiParams = {}
   ): Promise<ZhijiaoyunApiResponse<T>> {
     const timestamp = Date.now()
-    const signature = this.generateSignature(params, timestamp)
+    const signature = await this.generateSignature(params, timestamp)
 
     const url = new URL(endpoint, this.baseUrl)
 

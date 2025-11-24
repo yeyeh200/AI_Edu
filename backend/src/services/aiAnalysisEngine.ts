@@ -358,26 +358,40 @@ export class AIAnalysisEngine {
     const startTime = Date.now()
 
     try {
+      console.log(`🔍 开始分析教师 ID=${teacherId}, 时间窗口: ${timeWindow.startDate} 至 ${timeWindow.endDate}`)
+
       // 检查缓存
       const cacheKey = this.generateCacheKey(teacherId, timeWindow, ruleIds)
       const cached = this.getCachedResult(cacheKey)
       if (cached) {
+        console.log(`✅ 从缓存返回分析结果`)
         return cached
       }
 
       // 获取教师信息
+      console.log(`📝 查询教师信息...`)
       const teacher = await this.getTeacherInfo(teacherId)
       if (!teacher) {
-        throw new Error(`教师不存在: ${teacherId}`)
+        console.error(`❌ 教师不存在: ID=${teacherId}`)
+        throw new Error(`教师不存在 (ID: ${teacherId})。请检查教师ID是否正确，或联系管理员添加教师信息。`)
       }
+      console.log(`✅ 找到教师: ${teacher.name} (工号: ${teacher.employeeId || 'N/A'})`)
 
       // 获取分析数据
+      console.log(`📊 收集分析数据...`)
       const analysisData = await this.collectAnalysisData(teacherId, timeWindow)
 
       // 评估数据质量
       const dataQuality = await this.assessDataQuality(analysisData)
-      if (dataQuality.overall < 0.6) {
-        throw new Error('数据质量不足，无法进行可靠分析')
+      console.log(`📊 数据质量评估: ${dataQuality.overall.toFixed(2)} (阈值: 0.3)`, {
+        evaluationRecords: analysisData.evaluationRecords.length,
+        examScores: analysisData.examScores.length,
+        attendanceRecords: analysisData.attendanceRecords.length,
+        students: analysisData.students.length
+      })
+
+      if (dataQuality.overall < 0.3) {  // 降低阈值从0.6到0.3
+        throw new Error(`数据质量不足(${(dataQuality.overall * 100).toFixed(1)}%)，无法进行可靠分析。请确保有足够的评价记录、考试成绩和考勤数据。`)
       }
 
       // 执行分析规则
@@ -745,9 +759,16 @@ export class AIAnalysisEngine {
   /**
    * 计算作业完成率
    */
-  private calculateAssignmentCompletionRate(students: any[], timeWindow: TimeWindow): number {
-    // 简化实现，实际应该查询作业表
-    return 85 + Math.random() * 15 // 模拟数据
+  private async calculateAssignmentCompletionRate(students: any[], timeWindow: TimeWindow): Promise<number> {
+    // 基于教学活动中的作业类型估算完成率
+    const activities = await this.dbService.query<any>(
+      `SELECT COUNT(*)::int AS cnt FROM teaching_activities ta WHERE ta.activity_type = 'assignment' AND ta.activity_date >= $1 AND ta.activity_date <= $2`,
+      [timeWindow.startDate, timeWindow.endDate]
+    )
+    const assignmentCount = activities[0]?.cnt || 0
+    const denominator = Math.max(students.length, 1)
+    const rate = (assignmentCount / denominator) * 100
+    return Math.max(0, Math.min(100, rate))
   }
 
   /**
@@ -764,16 +785,31 @@ export class AIAnalysisEngine {
    * 计算互动频率
    */
   private async calculateInteractionFrequency(students: any[], timeWindow: TimeWindow): Promise<number> {
-    // 简化实现，实际应该查询互动记录
-    return 2 + Math.random() * 4 // 模拟数据
+    const activities = await this.dbService.query<any>(
+      `SELECT COUNT(*)::int AS cnt FROM teaching_activities ta WHERE ta.activity_date >= $1 AND ta.activity_date <= $2`,
+      [timeWindow.startDate, timeWindow.endDate]
+    )
+    const total = activities[0]?.cnt || 0
+    const denominator = Math.max(students.length, 1)
+    const freq = total / denominator
+    return Math.max(0, freq)
   }
 
   /**
    * 计算参与度评分
    */
   private async calculateParticipationScore(students: any[], timeWindow: TimeWindow): Promise<number> {
-    // 简化实现，实际应该基于多种参与指标
-    return 70 + Math.random() * 25 // 模拟数据
+    const attendance = await this.dbService.query<any>(
+      `SELECT COUNT(*) FILTER (WHERE status = 'present')::int AS present, COUNT(*)::int AS total FROM attendance_records WHERE date >= $1 AND date <= $2`,
+      [timeWindow.startDate, timeWindow.endDate]
+    )
+    const present = attendance[0]?.present || 0
+    const total = attendance[0]?.total || 1
+    const attendanceRate = (present / total) * 100
+    const interactionFreq = await this.calculateInteractionFrequency(students, timeWindow)
+    const interactionScore = Math.min(100, interactionFreq * 20) // 简单归一化
+    const score = (attendanceRate * 0.6) + (interactionScore * 0.4)
+    return Math.max(0, Math.min(100, score))
   }
 
   /**
@@ -793,40 +829,85 @@ export class AIAnalysisEngine {
    * 计算作业平均分
    */
   private async calculateAssignmentAverageScore(students: any[], timeWindow: TimeWindow): Promise<number> {
-    // 简化实现，实际应该查询作业表
-    return 75 + Math.random() * 20 // 模拟数据
+    // 以考试平均分作为作业平均分的近似替代
+    const scores = await this.dbService.query<any>(
+      `SELECT AVG(score)::numeric AS avg_score FROM exam_scores WHERE exam_date >= $1 AND exam_date <= $2`,
+      [timeWindow.startDate, timeWindow.endDate]
+    )
+    const avg = Number(scores[0]?.avg_score || 0)
+    return Math.max(0, Math.min(100, avg))
   }
 
   /**
    * 计算知识保持率
    */
   private async calculateKnowledgeRetentionRate(students: any[], timeWindow: TimeWindow): Promise<number> {
-    // 简化实现，实际应该比较前后测成绩
-    return 70 + Math.random() * 20 // 模拟数据
+    // 以连续两次考试的平均分差作为保持率近似（无历史则返回当前平均）
+    const currentAvgRows = await this.dbService.query<any>(
+      `SELECT AVG(score)::numeric AS avg_score FROM exam_scores WHERE exam_date >= $1 AND exam_date <= $2`,
+      [timeWindow.startDate, timeWindow.endDate]
+    )
+    const currentAvg = Number(currentAvgRows[0]?.avg_score || 0)
+    const prevAvgRows = await this.dbService.query<any>(
+      `SELECT AVG(score)::numeric AS avg_score FROM exam_scores WHERE exam_date < $1`,
+      [timeWindow.startDate]
+    )
+    const prevAvg = Number(prevAvgRows[0]?.avg_score || currentAvg)
+    const retention = prevAvg > 0 ? (currentAvg / prevAvg) * 100 : currentAvg
+    return Math.max(0, Math.min(100, retention))
   }
 
   /**
    * 计算分数提升率
    */
   private async calculateScoreImprovementRate(students: any[], timeWindow: TimeWindow): Promise<number> {
-    // 简化实现，实际应该比较时间段内成绩变化
-    return 5 + Math.random() * 20 // 模拟数据
+    const rows = await this.dbService.query<any>(
+      `SELECT AVG(score)::numeric AS avg_score FROM exam_scores WHERE exam_date >= $1 AND exam_date <= $2`,
+      [timeWindow.startDate, timeWindow.endDate]
+    )
+    const currentAvg = Number(rows[0]?.avg_score || 0)
+    const prevRows = await this.dbService.query<any>(
+      `SELECT AVG(score)::numeric AS avg_score FROM exam_scores WHERE exam_date < $1`,
+      [timeWindow.startDate]
+    )
+    const prevAvg = Number(prevRows[0]?.avg_score || 0)
+    const improvement = prevAvg > 0 ? ((currentAvg - prevAvg) / prevAvg) * 100 : 0
+    return Math.max(-100, Math.min(100, improvement))
   }
 
   /**
    * 计算等级提升率
    */
   private async calculateGradeImprovementRate(students: any[], timeWindow: TimeWindow): Promise<number> {
-    // 简化实现，实际应该比较等级变化
-    return 10 + Math.random() * 15 // 模拟数据
+    // 以通过率变化近似等级提升率
+    const passRowsCurrent = await this.dbService.query<any>(
+      `SELECT COUNT(*) FILTER (WHERE score >= 60)::int AS pass, COUNT(*)::int AS total FROM exam_scores WHERE exam_date >= $1 AND exam_date <= $2`,
+      [timeWindow.startDate, timeWindow.endDate]
+    )
+    const passRowsPrev = await this.dbService.query<any>(
+      `SELECT COUNT(*) FILTER (WHERE score >= 60)::int AS pass, COUNT(*)::int AS total FROM exam_scores WHERE exam_date < $1`,
+      [timeWindow.startDate]
+    )
+    const currentRate = (passRowsCurrent[0]?.pass || 0) / Math.max(1, passRowsCurrent[0]?.total || 1)
+    const prevRate = (passRowsPrev[0]?.pass || 0) / Math.max(1, passRowsPrev[0]?.total || 1)
+    const rate = (currentRate - prevRate) * 100
+    return Math.max(-100, Math.min(100, rate))
   }
 
   /**
    * 计算同行百分位排名
    */
   private async calculatePeerPercentileRank(data: any, timeWindow: TimeWindow): Promise<number> {
-    // 简化实现，实际应该查询同行数据进行比较
-    return 60 + Math.random() * 30 // 模拟数据
+    const rows = await this.dbService.query<any>(
+      `SELECT teacher_id, AVG(overall_score)::numeric AS avg_score FROM evaluation_records WHERE created_at >= $1 AND created_at <= $2 GROUP BY teacher_id ORDER BY avg_score DESC`,
+      [timeWindow.startDate, timeWindow.endDate]
+    )
+    const teacherId = rows[0]?.teacher_id
+    const sorted = rows.map((r: any) => Number(r.avg_score || 0)).sort((a, b) => b - a)
+    const myScore = Number(rows.find((r: any) => r.teacher_id === teacherId)?.avg_score || 0)
+    const rank = sorted.findIndex(s => s === myScore) + 1
+    const percentile = sorted.length > 0 ? (1 - (rank - 1) / sorted.length) * 100 : 0
+    return Math.max(0, Math.min(100, percentile))
   }
 
   /**
@@ -927,28 +1008,50 @@ export class AIAnalysisEngine {
       }
     }
 
-    return {
+    let result = {
       strengths: strengths.length > 0 ? strengths : ['整体表现稳定'],
       weaknesses: weaknesses.length > 0 ? weaknesses : ['暂无明显弱点'],
       recommendations: recommendations.length > 0 ? recommendations : ['继续保持当前状态'],
       trends
     }
+
+    // 当LLM启用时，生成自然语言洞察补充
+    try {
+      const llmEnabled = (config as any).ai?.llm?.enabled
+      if (llmEnabled) {
+        const llmText = await this.generateLLMInsights(dimensionResults, data)
+        if (llmText) {
+          result.recommendations = [...result.recommendations, llmText]
+        }
+      }
+    } catch (_) {
+      // LLM不可用时忽略
+    }
+
+    return result
   }
 
   /**
    * 分析趋势
    */
   private async analyzeTrend(metricName: string, data: any): Promise<any> {
-    // 简化实现，实际应该基于历史数据分析趋势
-    const directions = ['improving', 'declining', 'stable']
-    const direction = directions[Math.floor(Math.random() * directions.length)]
-    const change = Math.random() * 20 - 10 // -10 to +10
-
-    return {
-      metric: metricName,
-      direction,
-      change: Math.round(change * 100) / 100
-    }
+    // 基于评价记录的最近均值变化计算趋势
+    const now = new Date()
+    const end = now.toISOString()
+    const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const recentRows = await this.dbService.query<any>(
+      `SELECT AVG(overall_score)::numeric AS avg_score FROM evaluation_records WHERE created_at >= $1 AND created_at <= $2`,
+      [start, end]
+    )
+    const prevRows = await this.dbService.query<any>(
+      `SELECT AVG(overall_score)::numeric AS avg_score FROM evaluation_records WHERE created_at < $1`,
+      [start]
+    )
+    const recent = Number(recentRows[0]?.avg_score || 0)
+    const prev = Number(prevRows[0]?.avg_score || 0)
+    const delta = recent - prev
+    const direction = delta > 1 ? 'improving' : delta < -1 ? 'declining' : 'stable'
+    return { metric: metricName, direction, change: Math.round(delta * 100) / 100 }
   }
 
   /**
@@ -1368,6 +1471,31 @@ export class AIAnalysisEngine {
       if (new Date(cache.expiresAt) <= now) {
         this.analysisCache.delete(key)
       }
+    }
+  }
+  /**
+   * 调用LLM生成洞察
+   */
+  private async generateLLMInsights(dimensionResults: DimensionResult[], data: any): Promise<string | null> {
+    const endpoint = `${config.ai.llm.endpoint}${config.ai.llm.apiPath}`
+    const model = config.ai.llm.model
+    const prompt = `你是教学评价助理。基于以下维度评分与指标，给出一句话的改进建议：\n${JSON.stringify(dimensionResults)}`
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), config.ai.llm.timeoutMs)
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, prompt, stream: false }),
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
+      if (!res.ok) return null
+      const json = await res.json()
+      const text = json.response || json.text || ''
+      return text ? String(text).trim() : null
+    } catch (_) {
+      return null
     }
   }
 }

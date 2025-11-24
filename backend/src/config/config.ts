@@ -55,6 +55,7 @@ export const config = {
     timeout: 30000,
     retryAttempts: 3,
     retryDelay: 1000,
+    mode: (Deno.env.get('ZHIJIAOYUN_MODE') || 'mock') as 'mock' | 'real',
   },
 
   // 文件上传配置
@@ -88,6 +89,17 @@ export const config = {
       data: 1800, // 30分钟
       analysis: 7200, // 2小时
     },
+  },
+
+  // AI配置
+  ai: {
+    llm: {
+      enabled: (Deno.env.get('AI_LLM_ENABLED') || 'false') === 'true',
+      endpoint: Deno.env.get('OLLAMA_ENDPOINT') || 'http://localhost:11434',
+      apiPath: Deno.env.get('OLLAMA_API_PATH') || '/api/generate',
+      model: Deno.env.get('OLLAMA_MODEL') || 'qwen3:8b',
+      timeoutMs: parseInt(Deno.env.get('OLLAMA_TIMEOUT') || '15000'),
+    }
   },
 
   // 分页配置

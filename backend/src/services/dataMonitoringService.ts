@@ -5,6 +5,7 @@
 
 import { DatabaseService } from './databaseService.ts'
 import { ZhijiaoyunService } from './zhijiaoyunService.ts'
+import { ZhijiaoyunMockProvider } from './zhijiaoyunMockProvider.ts'
 import { config } from '@/config/config'
 import {
   SystemMetrics,
@@ -19,14 +20,14 @@ import {
 
 export class DataMonitoringService {
   private dbService: DatabaseService
-  private zhijiaoyunService: ZhijiaoyunService
+  private zhijiaoyunService: any
   private alertRules: Map<string, AlertRule>
   private activeAlerts: Map<string, AlertEvent>
   private monitoringInterval?: number
 
   constructor() {
     this.dbService = new DatabaseService()
-    this.zhijiaoyunService = new ZhijiaoyunService()
+    this.zhijiaoyunService = config.zhijiaoyun.mode === 'mock' ? new ZhijiaoyunMockProvider() : new ZhijiaoyunService()
     this.alertRules = new Map()
     this.activeAlerts = new Map()
 
@@ -556,7 +557,7 @@ export class DataMonitoringService {
 
       const qualityScore = Math.max(0, Math.min(100, (validRecords / totalRecords) * 100))
 
-      return {
+      const result: DataQualityResult = {
         dataType,
         totalRecords,
         validRecords,
@@ -567,6 +568,18 @@ export class DataMonitoringService {
         issues,
         checkedAt: new Date().toISOString()
       }
+
+      // 持久化质量报告
+      try {
+        await this.dbService.executeSql(
+          `INSERT INTO data_quality_reports (id, data_type, passed, issues, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
+          [crypto.randomUUID(), dataType, qualityScore >= 70, JSON.stringify({ issues, summary: { totalRecords, validRecords, invalidRecords, duplicateRecords, qualityScore } })]
+        )
+      } catch (_) {
+        // 忽略持久化失败
+      }
+
+      return result
     } catch (error: any) {
       console.error('数据质量检查失败:', error)
 

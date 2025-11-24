@@ -80,6 +80,8 @@ dataCollection.get('/config', authMiddleware, async (c) => {
       success: true,
       data: config,
       message: '获取采集配置成功',
+      code: 200,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 200)
@@ -88,6 +90,8 @@ dataCollection.get('/config', authMiddleware, async (c) => {
       success: false,
       message: error.message || '获取采集配置失败',
       error: 'GET_CONFIG_FAILED',
+      code: 500,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 500)
@@ -120,10 +124,13 @@ dataCollection.put('/config', adminMiddleware, async (c) => {
 dataCollection.get('/tasks', authMiddleware, zValidator('query', taskQuerySchema), async (c) => {
   try {
     const params = c.req.valid('query')
-
-    // TODO: 实现任务查询逻辑
-    const tasks: CollectionTask[] = []
-    const total = 0
+    const { tasks, total } = await collectionService.listTasks({
+      page: params.page,
+      pageSize: params.pageSize,
+      dataType: params.dataType,
+      status: params.status,
+      enabled: params.enabled,
+    })
 
     const response: ApiResponse = {
       success: true,
@@ -134,6 +141,8 @@ dataCollection.get('/tasks', authMiddleware, zValidator('query', taskQuerySchema
         pageSize: params.pageSize
       },
       message: '获取采集任务列表成功',
+      code: 200,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 200)
@@ -142,6 +151,8 @@ dataCollection.get('/tasks', authMiddleware, zValidator('query', taskQuerySchema
       success: false,
       message: error.message || '获取采集任务列表失败',
       error: 'GET_TASKS_FAILED',
+      code: 500,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 500)
@@ -152,7 +163,6 @@ dataCollection.post('/tasks', adminMiddleware, zValidator('json', createTaskSche
   try {
     const taskData = c.req.valid('json')
 
-    // TODO: 实现任务创建逻辑
     const task: CollectionTask = {
       id: crypto.randomUUID(),
       ...taskData,
@@ -164,10 +174,14 @@ dataCollection.post('/tasks', adminMiddleware, zValidator('json', createTaskSche
       updatedAt: new Date().toISOString(),
     }
 
+    await collectionService.createTask(task)
+
     const response: ApiResponse = {
       success: true,
       data: task,
       message: '创建采集任务成功',
+      code: 201,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 201)
@@ -176,6 +190,8 @@ dataCollection.post('/tasks', adminMiddleware, zValidator('json', createTaskSche
       success: false,
       message: error.message || '创建采集任务失败',
       error: 'CREATE_TASK_FAILED',
+      code: 400,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 400)
@@ -185,15 +201,15 @@ dataCollection.post('/tasks', adminMiddleware, zValidator('json', createTaskSche
 dataCollection.get('/tasks/:taskId', authMiddleware, async (c) => {
   try {
     const taskId = c.req.param('taskId')
-
-    // TODO: 实现获取单个任务逻辑
-    const task = null
+    const task = await collectionService.getTask(taskId)
 
     if (!task) {
       const response: ApiResponse = {
         success: false,
         message: '采集任务不存在',
         error: 'TASK_NOT_FOUND',
+        code: 404,
+        timestamp: new Date().toISOString(),
       }
       return c.json(response, 404)
     }
@@ -202,6 +218,8 @@ dataCollection.get('/tasks/:taskId', authMiddleware, async (c) => {
       success: true,
       data: task,
       message: '获取采集任务成功',
+      code: 200,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 200)
@@ -210,6 +228,8 @@ dataCollection.get('/tasks/:taskId', authMiddleware, async (c) => {
       success: false,
       message: error.message || '获取采集任务失败',
       error: 'GET_TASK_FAILED',
+      code: 500,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 500)
@@ -221,22 +241,27 @@ dataCollection.put('/tasks/:taskId', adminMiddleware, zValidator('json', updateT
     const taskId = c.req.param('taskId')
     const updateData = c.req.valid('json')
 
-    // TODO: 实现任务更新逻辑
-    const task = null
+    const ok = await collectionService.updateTask(taskId, updateData)
 
-    if (!task) {
+    if (!ok) {
       const response: ApiResponse = {
         success: false,
         message: '采集任务不存在',
         error: 'TASK_NOT_FOUND',
+        code: 404,
+        timestamp: new Date().toISOString(),
       }
       return c.json(response, 404)
     }
+
+    const task = await collectionService.getTask(taskId)
 
     const response: ApiResponse = {
       success: true,
       data: task,
       message: '更新采集任务成功',
+      code: 200,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 200)
@@ -245,6 +270,8 @@ dataCollection.put('/tasks/:taskId', adminMiddleware, zValidator('json', updateT
       success: false,
       message: error.message || '更新采集任务失败',
       error: 'UPDATE_TASK_FAILED',
+      code: 400,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 400)
@@ -254,15 +281,15 @@ dataCollection.put('/tasks/:taskId', adminMiddleware, zValidator('json', updateT
 dataCollection.delete('/tasks/:taskId', adminMiddleware, async (c) => {
   try {
     const taskId = c.req.param('taskId')
+    const ok = await collectionService.deleteTask(taskId)
 
-    // TODO: 实现任务删除逻辑
-    const exists = true
-
-    if (!exists) {
+    if (!ok) {
       const response: ApiResponse = {
         success: false,
         message: '采集任务不存在',
         error: 'TASK_NOT_FOUND',
+        code: 404,
+        timestamp: new Date().toISOString(),
       }
       return c.json(response, 404)
     }
@@ -270,6 +297,8 @@ dataCollection.delete('/tasks/:taskId', adminMiddleware, async (c) => {
     const response: ApiResponse = {
       success: true,
       message: '删除采集任务成功',
+      code: 200,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 200)
@@ -278,6 +307,8 @@ dataCollection.delete('/tasks/:taskId', adminMiddleware, async (c) => {
       success: false,
       message: error.message || '删除采集任务失败',
       error: 'DELETE_TASK_FAILED',
+      code: 500,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 500)

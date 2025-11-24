@@ -4,6 +4,7 @@
  */
 
 import { ZhijiaoyunService } from './zhijiaoyunService.ts'
+import { ZhijiaoyunMockProvider } from './zhijiaoyunMockProvider.ts'
 import { DatabaseService } from './databaseService.ts'
 import { config } from '@/config/config'
 import {
@@ -28,14 +29,14 @@ import {
 } from '@/types/zhijiaoyun'
 
 export class DataCollectionService {
-  private zhijiaoyunService: ZhijiaoyunService
+  private zhijiaoyunService: any
   private dbService: DatabaseService
   private config: CollectionConfig
   private runningTasks: Map<string, AbortController>
   private logs: CollectionLog[]
 
   constructor() {
-    this.zhijiaoyunService = new ZhijiaoyunService()
+    this.zhijiaoyunService = config.zhijiaoyun.mode === 'mock' ? new ZhijiaoyunMockProvider() : new ZhijiaoyunService()
     this.dbService = new DatabaseService()
     this.runningTasks = new Map()
     this.logs = []
@@ -71,7 +72,7 @@ export class DataCollectionService {
   /**
    * 记录日志
    */
-  private log(taskId: string, taskName: string, level: CollectionLog['level'], message: string, details?: any): void {
+  private async log(taskId: string, taskName: string, level: CollectionLog['level'], message: string, details?: any): Promise<void> {
     const logEntry: CollectionLog = {
       id: crypto.randomUUID(),
       taskId,
@@ -88,6 +89,16 @@ export class DataCollectionService {
     // 保持日志数量在合理范围内
     if (this.logs.length > 10000) {
       this.logs = this.logs.slice(-5000)
+    }
+
+    // 持久化日志
+    try {
+      await this.dbService.executeSql(
+        `INSERT INTO collection_logs (id, task_id, task_name, level, message, details, timestamp) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [logEntry.id, logEntry.taskId, logEntry.taskName, logEntry.level, logEntry.message, JSON.stringify(logEntry.details || {}), logEntry.timestamp]
+      )
+    } catch (_) {
+      // 忽略日志持久化失败，避免影响主流程
     }
   }
 
@@ -116,12 +127,12 @@ export class DataCollectionService {
     const taskId = task.id
     const taskName = task.name
 
-    this.log(taskId, taskName, 'info', '开始执行采集任务', { dataType: task.dataType })
+    await this.log(taskId, taskName, 'info', '开始执行采集任务', { dataType: task.dataType })
 
     // 检查是否有并发任务限制
     if (this.runningTasks.size >= this.config.maxConcurrentTasks) {
       const error = '已达到最大并发任务数限制'
-      this.log(taskId, taskName, 'error', error)
+      await this.log(taskId, taskName, 'error', error)
       return {
         taskId,
         success: false,
@@ -173,7 +184,7 @@ export class DataCollectionService {
           throw new Error(`不支持的数据类型: ${task.dataType}`)
       }
 
-      this.log(taskId, taskName, 'info', '采集任务完成', {
+      await this.log(taskId, taskName, 'info', '采集任务完成', {
         success: result.success,
         recordCount: result.recordCount,
         duration: result.duration
@@ -182,7 +193,7 @@ export class DataCollectionService {
       return result
     } catch (error: any) {
       const errorMessage = error.message || '未知错误'
-      this.log(taskId, taskName, 'error', '采集任务失败', { error: errorMessage })
+      await this.log(taskId, taskName, 'error', '采集任务失败', { error: errorMessage })
 
       return {
         taskId,
@@ -199,6 +210,94 @@ export class DataCollectionService {
       }
     } finally {
       this.runningTasks.delete(taskId)
+    }
+  }
+
+  /**
+   * 创建采集任务
+   */
+  async createTask(task: CollectionTask): Promise<void> {
+    await this.dbService.executeSql(
+      `INSERT INTO collection_tasks (id, name, description, data_type, schedule, enabled, status, record_count, success_count, error_count, metadata, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`,
+      [task.id, task.name, task.description || '', task.dataType, task.schedule, task.enabled, task.status, task.recordCount || 0, task.successCount || 0, task.errorCount || 0, JSON.stringify(task.metadata || {})]
+    )
+  }
+
+  /**
+   * 更新采集任务
+   */
+  async updateTask(taskId: string, updates: Partial<CollectionTask>): Promise<boolean> {
+    const result = await this.dbService.executeSql(
+      `UPDATE collection_tasks SET name = COALESCE($2, name), description = COALESCE($3, description), schedule = COALESCE($4, schedule), enabled = COALESCE($5, enabled), status = COALESCE($6, status), metadata = COALESCE($7, metadata), updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [taskId, updates.name || null, updates.description || null, updates.schedule || null, typeof updates.enabled === 'boolean' ? updates.enabled : null, updates.status || null, updates.metadata ? JSON.stringify(updates.metadata) : null]
+    )
+    return (result.rowCount || 0) > 0
+  }
+
+  /**
+   * 删除采集任务
+   */
+  async deleteTask(taskId: string): Promise<boolean> {
+    const result = await this.dbService.executeSql(`DELETE FROM collection_tasks WHERE id = $1`, [taskId])
+    return (result.rowCount || 0) > 0
+  }
+
+  /**
+   * 获取采集任务
+   */
+  async getTask(taskId: string): Promise<CollectionTask | null> {
+    const rows = await this.dbService.query<any>(`SELECT * FROM collection_tasks WHERE id = $1`, [taskId])
+    if (rows.length === 0) return null
+    const r = rows[0]
+    return {
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      dataType: r.data_type,
+      schedule: r.schedule,
+      enabled: r.enabled,
+      status: r.status,
+      recordCount: r.record_count,
+      successCount: r.success_count,
+      errorCount: r.error_count,
+      metadata: r.metadata || {},
+      createdAt: r.created_at?.toISOString?.() || r.created_at,
+      updatedAt: r.updated_at?.toISOString?.() || r.updated_at,
+    }
+  }
+
+  /**
+   * 列表查询采集任务
+   */
+  async listTasks(params: { page: number; pageSize: number; dataType?: string; status?: string; enabled?: boolean; }): Promise<{ tasks: CollectionTask[]; total: number; }> {
+    const filters: string[] = []
+    const values: any[] = []
+    let idx = 1
+    if (params.dataType) { filters.push(`data_type = $${idx++}`); values.push(params.dataType) }
+    if (params.status) { filters.push(`status = $${idx++}`); values.push(params.status) }
+    if (typeof params.enabled === 'boolean') { filters.push(`enabled = $${idx++}`); values.push(params.enabled) }
+    const where = filters.length ? `WHERE ${filters.join(' AND ')}` : ''
+    const offset = (params.page - 1) * params.pageSize
+    const tasks = await this.dbService.query<any>(`SELECT * FROM collection_tasks ${where} ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`, [...values, params.pageSize, offset])
+    const totalRows = await this.dbService.query<{ count: number }>(`SELECT COUNT(*)::int as count FROM collection_tasks ${where}`, values)
+    return {
+      tasks: tasks.map(r => ({
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        dataType: r.data_type,
+        schedule: r.schedule,
+        enabled: r.enabled,
+        status: r.status,
+        recordCount: r.record_count,
+        successCount: r.success_count,
+        errorCount: r.error_count,
+        metadata: r.metadata || {},
+        createdAt: r.created_at?.toISOString?.() || r.created_at,
+        updatedAt: r.updated_at?.toISOString?.() || r.updated_at,
+      })),
+      total: totalRows[0]?.count || 0
     }
   }
 

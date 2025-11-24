@@ -7,11 +7,13 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { ZhijiaoyunService } from '@/services/zhijiaoyunService'
+import { ZhijiaoyunMockProvider } from '@/services/zhijiaoyunMockProvider'
+import { config } from '@/config/config'
 import { authMiddleware, adminMiddleware } from '@/middleware/auth'
 import { ApiResponse } from '@/types'
 
 const zhijiaoyun = new Hono()
-const zhijiaoyunService = new ZhijiaoyunService()
+const zhijiaoyunService = config.zhijiaoyun.mode === 'mock' ? new ZhijiaoyunMockProvider() : new ZhijiaoyunService()
 
 // 查询参数验证schemas
 const paginationSchema = z.object({
@@ -64,6 +66,8 @@ zhijiaoyun.get('/health', authMiddleware, async (c) => {
       success: true,
       data: healthStatus,
       message: healthStatus.status === 'healthy' ? 'API连接正常' : 'API连接异常',
+      code: 200,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 200)
@@ -72,6 +76,8 @@ zhijiaoyun.get('/health', authMiddleware, async (c) => {
       success: false,
       message: error.message || '健康检查失败',
       error: 'HEALTH_CHECK_FAILED',
+      code: 500,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 500)
@@ -88,6 +94,8 @@ zhijiaoyun.get('/users', authMiddleware, zValidator('query', userQuerySchema), a
       success: true,
       data: result,
       message: '获取用户列表成功',
+      code: 200,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 200)
@@ -96,6 +104,8 @@ zhijiaoyun.get('/users', authMiddleware, zValidator('query', userQuerySchema), a
       success: false,
       message: error.message || '获取用户列表失败',
       error: 'GET_USERS_FAILED',
+      code: 500,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 500)
@@ -113,6 +123,8 @@ zhijiaoyun.get('/users/:userId', authMiddleware, async (c) => {
         success: false,
         message: '用户不存在',
         error: 'USER_NOT_FOUND',
+        code: 404,
+        timestamp: new Date().toISOString(),
       }
       return c.json(response, 404)
     }
@@ -121,6 +133,8 @@ zhijiaoyun.get('/users/:userId', authMiddleware, async (c) => {
       success: true,
       data: user,
       message: '获取用户信息成功',
+      code: 200,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 200)
@@ -129,6 +143,8 @@ zhijiaoyun.get('/users/:userId', authMiddleware, async (c) => {
       success: false,
       message: error.message || '获取用户信息失败',
       error: 'GET_USER_FAILED',
+      code: 500,
+      timestamp: new Date().toISOString(),
     }
 
     return c.json(response, 500)

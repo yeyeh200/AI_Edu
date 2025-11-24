@@ -1,42 +1,135 @@
 import { Hono } from 'hono'
 import { ApiResponse } from '@/types'
+import { DatabaseService } from '@/services/databaseService.ts'
 
 const dashboard = new Hono()
+const dbService = new DatabaseService()
 
 // 获取仪表盘统计信息
 dashboard.get('/stats', async (c) => {
-  const response: ApiResponse = {
-    success: true,
-    data: {
-      totalTeachers: 0,
-      totalCourses: 0,
-      totalStudents: 0,
-      totalAnalysisResults: 0,
-      averageScore: 0,
-      dataCollectionStatus: {
-        active: 0,
-        inactive: 0,
-        error: 0,
-      },
-      recentActivities: [],
-    },
-    message: '仪表盘统计数据获取成功',
-  }
+  try {
+    // 查询教师总数
+    const teachersResult = await dbService.query('SELECT COUNT(*) as count FROM teachers')
+    const totalTeachers = teachersResult[0]?.count || 0
 
-  return c.json(response, 200)
+    // 查询课程总数
+    const coursesResult = await dbService.query('SELECT COUNT(*) as count FROM courses')
+    const totalCourses = coursesResult[0]?.count || 0
+
+    // 查询学生总数
+    const studentsResult = await dbService.query('SELECT COUNT(*) as count FROM students')
+    const totalStudents = studentsResult[0]?.count || 0
+
+    // 查询评价记录总数（作为分析结果的近似值）
+    const evaluationsResult = await dbService.query('SELECT COUNT(*) as count FROM evaluation_records')
+    const totalAnalysisResults = evaluationsResult[0]?.count || 0
+
+    // 查询平均评分
+    const avgScoreResult = await dbService.query('SELECT AVG(overall_score) as avg_score FROM evaluation_records WHERE overall_score IS NOT NULL')
+    const averageScore = avgScoreResult[0]?.avg_score || 0
+
+    // 查询最近活动（最近10条评价记录）
+    const recentActivitiesResult = await dbService.query(`
+      SELECT 
+        er.id,
+        er.created_at,
+        t.name as teacher_name,
+        er.overall_score
+      FROM evaluation_records er
+      LEFT JOIN teachers t ON er.teacher_id = t.id::VARCHAR
+      ORDER BY er.created_at DESC
+      LIMIT 10
+    `)
+
+    const response: ApiResponse = {
+      success: true,
+      data: {
+        totalTeachers: Number(totalTeachers),
+        totalCourses: Number(totalCourses),
+        totalStudents: Number(totalStudents),
+        totalAnalysisResults: Number(totalAnalysisResults),
+        averageScore: Number(averageScore).toFixed(2),
+        dataCollectionStatus: {
+          active: totalCourses > 0 ? 1 : 0,
+          inactive: 0,
+          error: 0,
+        },
+        recentActivities: recentActivitiesResult.map((activity: any) => ({
+          id: activity.id,
+          timestamp: activity.created_at,
+          teacherName: activity.teacher_name || '未知教师',
+          score: activity.overall_score,
+          type: 'evaluation'
+        })),
+      },
+      message: '仪表盘统计数据获取成功',
+    }
+
+    return c.json(response, 200)
+  } catch (error: any) {
+    console.error('❌ Dashboard统计数据查询失败:', error)
+
+    const response: ApiResponse = {
+      success: false,
+      message: error.message || '获取统计数据失败',
+      error: 'STATS_QUERY_FAILED',
+    }
+
+    return c.json(response, 500)
+  }
 })
 
 // 获取图表数据
 dashboard.get('/charts/:type', async (c) => {
   const chartType = c.req.param('type')
+  try {
+    let data: any = []
+    switch (chartType) {
+      case 'scores-over-time': {
+        const rows = await dbService.query(`
+          SELECT date_trunc('day', created_at) AS day, AVG(overall_score) AS avg_score
+          FROM evaluation_records
+          WHERE created_at >= NOW() - INTERVAL '30 days'
+          GROUP BY day
+          ORDER BY day ASC
+        `)
+        data = rows.map((r: any) => ({ day: r.day, avgScore: Number(r.avg_score || 0) }))
+        break
+      }
+      case 'pass-rate-by-course': {
+        const rows = await dbService.query(`
+          SELECT course_id, AVG(CASE WHEN score >= 60 THEN 1 ELSE 0 END) * 100 AS pass_rate
+          FROM exam_scores
+          WHERE exam_date >= NOW() - INTERVAL '90 days'
+          GROUP BY course_id
+          ORDER BY pass_rate DESC
+        `)
+        data = rows.map((r: any) => ({ courseId: r.course_id, passRate: Number(r.pass_rate || 0) }))
+        break
+      }
+      default: {
+        data = []
+      }
+    }
 
-  const response: ApiResponse = {
-    success: true,
-    data: [],
-    message: `${chartType}图表数据获取成功`,
+    const response: ApiResponse = {
+      success: true,
+      data,
+      message: `${chartType}图表数据获取成功`,
+      code: 200,
+      timestamp: new Date().toISOString(),
+    }
+    return c.json(response, 200)
+  } catch (error: any) {
+    const response: ApiResponse = {
+      success: false,
+      message: error.message || '图表数据获取失败',
+      error: 'GET_CHART_FAILED',
+      code: 500,
+      timestamp: new Date().toISOString(),
+    }
+    return c.json(response, 500)
   }
-
-  return c.json(response, 200)
 })
 
 export { dashboard as dashboardRoutes }
