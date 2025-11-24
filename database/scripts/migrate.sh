@@ -60,7 +60,7 @@ show_help() {
 
 # 默认参数
 DB_NAME="ai_evaluation"
-DB_USER="postgres"
+DB_USER="yezhiyong"
 DB_PASSWORD="postgres123"
 DB_HOST="localhost"
 DB_PORT="5432"

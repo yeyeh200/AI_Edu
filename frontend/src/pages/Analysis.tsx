@@ -28,7 +28,19 @@ export function Analysis() {
         setError(response.message || '分析失败')
       }
     } catch (err: any) {
-      setError(err.message || '分析请求失败')
+      console.error('❌ AI分析请求失败:', {
+        error: err,
+        response: err.response,
+        message: err.message,
+        teacherId,
+        timeWindow: { startDate, endDate }
+      })
+
+      // 提取详细错误信息
+      const errorMessage = err.response?.data?.message || err.message || '分析请求失败，请稍后重试'
+      const errorDetails = err.response?.data?.error || ''
+
+      setError(`${errorMessage}${errorDetails ? ` (${errorDetails})` : ''}`)
     } finally {
       setLoading(false)
     }

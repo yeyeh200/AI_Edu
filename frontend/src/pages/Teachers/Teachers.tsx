@@ -6,9 +6,7 @@ import {
   PencilIcon,
   TrashIcon,
   UserIcon,
-  EnvelopeIcon,
-  AcademicCapIcon,
-  FunnelIcon
+  AcademicCapIcon
 } from '@heroicons/react/24/outline';
 
 interface Teacher {
@@ -56,20 +54,16 @@ export const Teachers: React.FC = () => {
       if (!response.ok) {
         throw new Error('获取教师数据失败');
       }
-      return response.json();
+      const data = await response.json();
+      return data.data;
     },
   });
 
-  const { data: departments } = useQuery<string[]>({
-    queryKey: ['departments'],
-    queryFn: async () => {
-      const response = await fetch('/api/teachers/departments');
-      if (!response.ok) {
-        throw new Error('获取部门数据失败');
-      }
-      return response.json();
-    },
-  });
+  const departments = React.useMemo(() => {
+    if (!teachersData?.teachers) return [];
+    const allDepartments = teachersData.teachers.map(t => t.department);
+    return [...new Set(allDepartments)];
+  }, [teachersData]);
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();

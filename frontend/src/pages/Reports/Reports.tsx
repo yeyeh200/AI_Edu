@@ -232,21 +232,19 @@ export const Reports: React.FC = () => {
           <nav className="-mb-px flex space-x-8 px-6">
             <button
               onClick={() => setActiveTab('templates')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'templates'
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'templates'
                   ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               报表模板
             </button>
             <button
               onClick={() => setActiveTab('history')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'history'
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'history'
                   ? 'border-primary-500 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               历史记录
             </button>
@@ -260,32 +258,37 @@ export const Reports: React.FC = () => {
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-4">选择报表模板</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {templates?.map((template) => (
-                    <div
-                      key={template.id}
-                      onClick={() => setSelectedTemplate(template.id)}
-                      className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                        selectedTemplate === template.id
-                          ? 'border-primary-500 bg-primary-50'
-                          : 'border-gray-300 hover:border-gray-400'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className={`p-2 rounded-md ${getTypeColor(template.type)}`}>
-                          {getTemplateIcon(template.type)}
+                  {Array.isArray(templates) && templates.length > 0 ? (
+                    templates.map((template) => (
+                      <div
+                        key={template.id}
+                        onClick={() => setSelectedTemplate(template.id)}
+                        className={`border rounded-lg p-4 cursor-pointer transition-colors ${selectedTemplate === template.id
+                            ? 'border-primary-500 bg-primary-50'
+                            : 'border-gray-300 hover:border-gray-400'
+                          }`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className={`p-2 rounded-md ${getTypeColor(template.type)}`}>
+                            {getTemplateIcon(template.type)}
+                          </div>
+                          <span className="text-xs text-gray-500 uppercase">{template.format}</span>
                         </div>
-                        <span className="text-xs text-gray-500 uppercase">{template.format}</span>
+                        <h4 className="text-sm font-medium text-gray-900 mb-1">{template.name}</h4>
+                        <p className="text-xs text-gray-500 mb-2">{template.description}</p>
+                        <div className="flex items-center justify-between">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(template.type)}`}>
+                            {template.type}
+                          </span>
+                          <span className="text-xs text-gray-400">{template.category}</span>
+                        </div>
                       </div>
-                      <h4 className="text-sm font-medium text-gray-900 mb-1">{template.name}</h4>
-                      <p className="text-xs text-gray-500 mb-2">{template.description}</p>
-                      <div className="flex items-center justify-between">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(template.type)}`}>
-                          {template.type}
-                        </span>
-                        <span className="text-xs text-gray-400">{template.category}</span>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-full text-center py-12 text-gray-500">
+                      暂无报表模板
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
@@ -399,58 +402,60 @@ export const Reports: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {reports?.map((report) => (
-                      <tr key={report.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {report.title}
+                    {Array.isArray(reports) && reports.length > 0 ? (
+                      reports.map((report) => (
+                        <tr key={report.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {report.title}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {report.templateName}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                生成者: {report.generatedBy}
+                              </div>
                             </div>
-                            <div className="text-sm text-gray-500">
-                              {report.templateName}
-                            </div>
-                            <div className="text-xs text-gray-400">
-                              生成者: {report.generatedBy}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            {report.format.toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(report.status)}`}>
-                            {getStatusText(report.status)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(report.generatedAt).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {report.fileSize ? `${(report.fileSize / 1024 / 1024).toFixed(2)} MB` : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex justify-end space-x-2">
-                            {report.status === 'completed' && report.downloadUrl && (
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              {report.format.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(report.status)}`}>
+                              {getStatusText(report.status)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(report.generatedAt).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {report.fileSize ? `${(report.fileSize / 1024 / 1024).toFixed(2)} MB` : '-'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex justify-end space-x-2">
+                              {report.status === 'completed' && report.downloadUrl && (
+                                <button
+                                  onClick={() => downloadReport(report.id, report.downloadUrl!)}
+                                  className="text-indigo-600 hover:text-indigo-900"
+                                  title="下载"
+                                >
+                                  <DocumentArrowDownIcon className="h-5 w-5" />
+                                </button>
+                              )}
                               <button
-                                onClick={() => downloadReport(report.id, report.downloadUrl!)}
-                                className="text-indigo-600 hover:text-indigo-900"
-                                title="下载"
+                                className="text-blue-600 hover:text-blue-900"
+                                title="查看详情"
                               >
-                                <DocumentArrowDownIcon className="h-5 w-5" />
+                                <EyeIcon className="h-5 w-5" />
                               </button>
-                            )}
-                            <button
-                              className="text-blue-600 hover:text-blue-900"
-                              title="查看详情"
-                            >
-                              <EyeIcon className="h-5 w-5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : null}
                   </tbody>
                 </table>
               </div>
