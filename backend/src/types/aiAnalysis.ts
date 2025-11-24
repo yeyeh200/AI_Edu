@@ -3,7 +3,7 @@
  * 定义教学评价AI分析相关的数据结构
  */
 
-import { EvaluationRecord, EvaluationDimension, Teacher, Course, Class, Student, Assignment, ExamScore } from '@/types/database'
+import { EvaluationRecord, EvaluationDimension, Teacher, Course, Class, Student, Assignment, ExamScore } from '@/types/index.ts'
 
 /**
  * 分析规则类型

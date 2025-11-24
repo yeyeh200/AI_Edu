@@ -5,7 +5,7 @@
 
 import { DatabaseService } from './databaseService.ts'
 import { AIAnalysisEngine } from './aiAnalysisEngine.ts'
-import { config } from '@/config/config'
+import { config } from '../config/config.ts'
 import {
   EvaluationMetric,
   CalculationContext,
@@ -35,14 +35,14 @@ import {
   GroupFairnessResult,
   ItemReliability,
   ValidationEvidence
-} from '@/types/evaluationMetrics'
+} from '../types/evaluationMetrics.ts'
 import {
   EvaluationRecord,
   EvaluationDimension,
   Teacher,
   Course,
   Class
-} from '@/types/database'
+} from '../types/index.ts'
 
 export class EvaluationCalculator {
   private dbService: DatabaseService
@@ -801,7 +801,7 @@ export class EvaluationCalculator {
       `, [evaluateeId, context.timeWindow.startDate, context.timeWindow.endDate])
 
       // 转换为原始数据格式
-      for (const record of evaluationRecords.rows) {
+      for (const record of evaluationRecords) {
         if (record.dimension_scores) {
           const dimensionScores = typeof record.dimension_scores === 'string'
             ? JSON.parse(record.dimension_scores)
@@ -899,7 +899,7 @@ export class EvaluationCalculator {
         GROUP BY c.course_id, c.name
       `, [teacherId, context.timeWindow.startDate, context.timeWindow.endDate])
 
-      for (const course of examScores.rows) {
+      for (const course of examScores) {
         const passRate = (course.pass_count / course.student_count) * 100
 
         // 添加考试平均分指标
@@ -966,7 +966,7 @@ export class EvaluationCalculator {
       let totalSessions = 0
       let totalPresent = 0
 
-      for (const attendance of attendanceData.rows) {
+      for (const attendance of attendanceData) {
         totalSessions += attendance.total_sessions
         totalPresent += attendance.present_sessions
       }
@@ -1019,7 +1019,7 @@ export class EvaluationCalculator {
         WHERE c.id = $3
       `, [context.timeWindow.startDate, context.timeWindow.endDate, courseId])
 
-      const stat = stats.rows[0]
+      const stat = stats[0]
 
       if (stat) {
         data.push({
@@ -1079,7 +1079,7 @@ export class EvaluationCalculator {
         WHERE c.id = $3
       `, [context.timeWindow.startDate, context.timeWindow.endDate, classId])
 
-      const stat = stats.rows[0]
+      const stat = stats[0]
 
       if (stat) {
         data.push({
@@ -1269,7 +1269,7 @@ export class EvaluationCalculator {
           frequency[val] = (frequency[val] || 0) + 1
         })
         return Object.entries(frequency)
-          .sort(([,a], [,b]) => b - a)[0][0] as number
+          .sort(([, a], [, b]) => b - a)[0][0] as number
 
       case CalculationMethod.STANDARD_DEVIATION:
         const mean = values.reduce((sum, val) => sum + val, 0) / values.length
@@ -1668,9 +1668,9 @@ export class EvaluationCalculator {
         LIMIT 100
       `, [evaluateeId, context.timeWindow.startDate, context.timeWindow.endDate])
 
-      if (peerData.rows.length === 0) return null
+      if (peerData.length === 0) return null
 
-      const peerScores = peerData.rows.map(row => row.overall_score).filter(s => s !== null)
+      const peerScores = peerData.map(row => row.overall_score).filter(s => s !== null)
       if (peerScores.length === 0) return null
 
       // 计算统计量
@@ -1720,20 +1720,21 @@ export class EvaluationCalculator {
         endDate: new Date(new Date(context.timeWindow.startDate).getTime() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
       }
 
-      const historicalData = await this.dbService.query(`
+      const query = `
         SELECT AVG(overall_score) as avg_score
         FROM evaluation_records
-        WHERE evaluatee_id = $1
-          AND evaluatee_type = 'teacher'
+        WHERE teacher_id = $1
           AND created_at >= $2
           AND created_at <= $3
-      `, [evaluateeId, historicalPeriod.startDate, historicalPeriod.endDate])
+      `
+      const params = [evaluateeId, historicalPeriod.startDate, historicalPeriod.endDate]
+      const result = await this.dbService.query(query, params)
 
-      if (historicalData.rows.length === 0 || historicalData.rows[0].avg_score === null) {
+      if (result.length === 0 || result[0].avg_score === null) {
         return null
       }
 
-      const historicalScore = historicalData.rows[0].avg_score
+      const historicalScore = result[0].avg_score
 
       return {
         type: 'historical',
@@ -1815,7 +1816,7 @@ export class EvaluationCalculator {
     scores.forEach(score => {
       frequency[score] = (frequency[score] || 0) + 1
     })
-    const mode = Number(Object.entries(frequency).sort(([,a], [,b]) => b - a)[0][0])
+    const mode = Number(Object.entries(frequency).sort(([, a], [, b]) => b - a)[0][0])
 
     // 偏度和峰度
     const skewness = this.calculateSkewness(scores, mean, standardDeviation)
@@ -1881,7 +1882,7 @@ export class EvaluationCalculator {
     }, 0)
 
     return (n * (n + 1) / ((n - 1) * (n - 2) * (n - 3))) * sum -
-           3 * Math.pow(n - 1, 2) / ((n - 2) * (n - 3))
+      3 * Math.pow(n - 1, 2) / ((n - 2) * (n - 3))
   }
 
   /**

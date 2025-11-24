@@ -1,5 +1,5 @@
 import { Context } from 'hono'
-import { logger } from 'hono/logger'
+
 import { ApiResponse, AppError } from '@/types'
 
 // 全局错误处理中间件

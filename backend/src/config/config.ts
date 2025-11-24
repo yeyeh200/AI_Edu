@@ -22,7 +22,7 @@ export const config = {
     password: Deno.env.get('DB_PASSWORD') || 'password',
     ssl: Deno.env.get('DB_SSL') === 'true',
     connectionTimeout: 30000,
-    maxConnections: 10,
+    maxConnections: 5, // further reduced pool size
   },
 
   jwt: {

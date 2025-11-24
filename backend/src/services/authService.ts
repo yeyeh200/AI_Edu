@@ -1,7 +1,7 @@
-import { User, LoginRequest, LoginResponse, AuthResponse } from '@/types'
-import { DatabaseService } from '@/services/databaseService'
-import { jwt } from 'jwt'
-import { config } from '@/config/config'
+import { User, LoginRequest, LoginResponse, AuthResponse } from '@/types/index.ts'
+import { DatabaseService } from '@/services/databaseService.ts'
+import { create, verify, decode, getNumericDate } from 'jwt'
+import { config } from '@/config/config.ts'
 
 export class AuthService {
   private dbService: DatabaseService
@@ -35,25 +35,22 @@ export class AuthService {
       }
 
       // 生成JWT令牌
-      const token = this.generateToken(user)
+      const token = await this.generateToken(user)
 
       // 更新最后登录时间
       await this.updateLastLogin(user.id)
 
-      // 返回用户信息（不包含密码哈希）
-      const userResponse = {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        name: user.name,
-        avatar: user.avatar,
-        created_at: user.created_at,
-        updated_at: user.updated_at
+      // 移除敏感信息并转换BigInt
+      const { password_hash, ...userWithoutPassword } = user
+      const safeUser = {
+        ...userWithoutPassword,
+        id: String(user.id),
+        created_by: user.created_by ? String(user.created_by) : undefined,
+        updated_by: user.updated_by ? String(user.updated_by) : undefined
       }
 
       const response: LoginResponse = {
-        user: userResponse,
+        user: safeUser as any,
         token: token,
         expiresIn: config.jwt.expiresInNumber
       }
@@ -85,7 +82,7 @@ export class AuthService {
   async logout(token: string): Promise<AuthResponse> {
     try {
       // 验证令牌
-      const payload = this.verifyToken(token)
+      const payload = await this.verifyToken(token)
       if (!payload) {
         throw new Error('无效的令牌')
       }
@@ -115,7 +112,7 @@ export class AuthService {
   async getCurrentUser(token: string): Promise<AuthResponse<User>> {
     try {
       // 验证令牌
-      const payload = this.verifyToken(token)
+      const payload = await this.verifyToken(token)
       if (!payload) {
         throw new Error('无效的令牌')
       }
@@ -127,21 +124,18 @@ export class AuthService {
         throw new Error('用户不存在或已被禁用')
       }
 
-      // 返回用户信息（不包含密码哈希）
-      const userResponse = {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        name: user.name,
-        avatar: user.avatar,
-        created_at: user.created_at,
-        updated_at: user.updated_at
+      // 移除敏感信息并转换BigInt
+      const { password_hash, ...userWithoutPassword } = user
+      const safeUser = {
+        ...userWithoutPassword,
+        id: String(user.id),
+        created_by: user.created_by ? String(user.created_by) : undefined,
+        updated_by: user.updated_by ? String(user.updated_by) : undefined
       }
 
       return {
         success: true,
-        data: userResponse,
+        data: safeUser as any,
         message: '获取用户信息成功'
       }
 
@@ -160,7 +154,7 @@ export class AuthService {
   async refreshToken(token: string): Promise<AuthResponse<LoginResponse>> {
     try {
       // 验证当前令牌
-      const payload = this.verifyToken(token)
+      const payload = await this.verifyToken(token)
       if (!payload) {
         throw new Error('无效的令牌')
       }
@@ -181,24 +175,22 @@ export class AuthService {
       }
 
       // 生成新的令牌
-      const newToken = this.generateToken(user)
+      const newToken = await this.generateToken(user)
 
       // 更新最后登录时间
       await this.updateLastLogin(user.id)
 
-      const userResponse = {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        name: user.name,
-        avatar: user.avatar,
-        created_at: user.created_at,
-        updated_at: user.updated_at
+      // 移除敏感信息并转换BigInt
+      const { password_hash, ...userWithoutPassword } = user
+      const safeUser = {
+        ...userWithoutPassword,
+        id: String(user.id),
+        created_by: user.created_by ? String(user.created_by) : undefined,
+        updated_by: user.updated_by ? String(user.updated_by) : undefined
       }
 
       const response: LoginResponse = {
-        user: userResponse,
+        user: safeUser as any,
         token: newToken,
         expiresIn: config.jwt.expiresInNumber
       }
@@ -228,7 +220,7 @@ export class AuthService {
   ): Promise<AuthResponse> {
     try {
       // 验证令牌
-      const payload = this.verifyToken(token)
+      const payload = await this.verifyToken(token)
       if (!payload) {
         throw new Error('无效的令牌')
       }
@@ -308,9 +300,10 @@ export class AuthService {
   /**
    * 验证JWT令牌
    */
-  private verifyToken(token: string): any {
+  private async verifyToken(token: string): Promise<any> {
     try {
-      const payload = jwt.decode(token, config.jwt.secret)
+      const key = await this.getKey()
+      const payload = await verify(token, key)
       return payload
     } catch (error) {
       return null
@@ -320,19 +313,31 @@ export class AuthService {
   /**
    * 生成JWT令牌
    */
-  private generateToken(user: User): string {
+  private async generateToken(user: User): Promise<string> {
     const payload = {
-      userId: user.id,
+      userId: Number(user.id),
       username: user.username,
       email: user.email,
       role: user.role,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + config.jwt.expiresInNumber,
       iss: config.jwt.issuer,
-      aud: config.jwt.audience
+      aud: config.jwt.audience,
+      exp: getNumericDate(config.jwt.expiresInNumber)
     }
 
-    return jwt.sign(payload, config.jwt.secret)
+    const key = await this.getKey()
+    return await create({ alg: 'HS512', typ: 'JWT' }, payload, key)
+  }
+
+  private async getKey(): Promise<CryptoKey> {
+    const encoder = new TextEncoder()
+    const keyData = encoder.encode(config.jwt.secret)
+    return await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: 'HMAC', hash: 'SHA-512' },
+      true,
+      ['sign', 'verify']
+    )
   }
 
   /**
@@ -402,7 +407,7 @@ export class AuthService {
    * 根据角色获取权限
    */
   private getRolePermissions(role: string): string[] {
-    const rolePermissions = {
+    const rolePermissions: Record<string, string[]> = {
       admin: [
         'user:read', 'user:write', 'user:delete',
         'system:read', 'system:write',

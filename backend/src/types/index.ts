@@ -145,6 +145,72 @@ export interface Student {
   updated_at: Date
 }
 
+// 教师相关类型
+export interface Teacher {
+  id: string
+  name: string
+  employeeId: string
+  email: string
+  department?: string
+  title?: string
+  phone?: string
+  is_active: boolean
+  created_at: Date
+  updated_at: Date
+}
+
+// 作业相关类型
+export interface Assignment {
+  id: string
+  title: string
+  description?: string
+  course_id: string
+  teacher_id: string
+  due_date: Date
+  total_score: number
+  is_active: boolean
+  created_at: Date
+  updated_at: Date
+}
+
+// 考试成绩相关类型
+export interface ExamScore {
+  id: string
+  exam_id: string
+  exam_name: string
+  student_id: string
+  course_id: string
+  score: number
+  total_score: number
+  percentage: number
+  exam_date: Date
+  created_at: Date
+  updated_at: Date
+}
+
+// 评价记录相关类型
+export interface EvaluationRecord {
+  id: string
+  teacher_id: string
+  course_id?: string
+  student_id: string
+  overall_score: number
+  dimension_scores: Record<string, number>
+  comments?: string
+  evaluation_date: Date
+  created_at: Date
+  updated_at: Date
+}
+
+// 评价维度枚举
+export enum EvaluationDimension {
+  TEACHING_ATTITUDE = 'teaching_attitude',
+  TEACHING_CONTENT = 'teaching_content',
+  TEACHING_METHOD = 'teaching_method',
+  TEACHING_EFFECT = 'teaching_effect',
+  TEACHING_ETHICS = 'teaching_ethics'
+}
+
 // 学习活动数据类型
 export interface LearningActivity {
   id: string
@@ -228,7 +294,7 @@ export interface SortParams {
   sort_order: 'asc' | 'desc'
 }
 
-export interface QueryParams extends PaginationParams, FilterParams, SortParams {}
+export interface QueryParams extends PaginationParams, FilterParams, SortParams { }
 
 // 数据库查询选项
 export interface QueryOptions {

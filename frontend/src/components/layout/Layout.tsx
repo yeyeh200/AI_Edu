@@ -27,6 +27,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const navigation = [
     { name: '仪表盘', href: '/dashboard', icon: HomeIcon },
+    { name: 'AI分析', href: '/analysis', icon: ChartBarIcon },
     { name: '教师管理', href: '/teachers', icon: UserGroupIcon },
     { name: '课程管理', href: '/courses', icon: AcademicCapIcon },
     { name: '班级管理', href: '/classes', icon: BuildingOfficeIcon },
@@ -70,8 +71,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     key={item.name}
                     href={item.href}
                     className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive
-                        ? 'bg-primary-100 text-primary-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-primary-100 text-primary-900'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                       }`}
                   >
                     <item.icon
@@ -121,8 +122,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   key={item.name}
                   href={item.href}
                   className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive
-                      ? 'bg-primary-100 text-primary-900'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-primary-100 text-primary-900'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`}
                 >
                   <item.icon

@@ -5,7 +5,7 @@
 
 import { DatabaseService } from './databaseService.ts'
 import { DataCollectionService } from './dataCollectionService.ts'
-import { config } from '@/config/config'
+import { config } from '../config/config.ts'
 import {
   AnalysisRule,
   AnalysisResult,
@@ -20,11 +20,10 @@ import {
   AnalysisRuleType,
   AggregationMethod,
   ComparisonOperator,
-  EvaluationDimension,
   AnalysisCache,
   DataQualityMetrics,
   SystemPerformance
-} from '@/types/aiAnalysis'
+} from '../types/aiAnalysis.ts'
 import {
   EvaluationRecord,
   Teacher,
@@ -32,8 +31,9 @@ import {
   Class,
   Student,
   Assignment,
-  ExamScore
-} from '@/types/database'
+  ExamScore,
+  EvaluationDimension
+} from '../types/index.ts'
 
 export class AIAnalysisEngine {
   private dbService: DatabaseService
@@ -579,22 +579,21 @@ export class AIAnalysisEngine {
 
     // 获取考试成绩
     const examScores = await this.dbService.query(`
-      SELECT es.*, s.name as student_name, c.name as course_name
+      SELECT es.*, c.name as course_name
       FROM exam_scores es
-      JOIN students s ON es.student_id = s.id
-      JOIN courses c ON es.course_id = c.id
-      WHERE c.teacher_id = $1
+      JOIN students s ON es.student_id = s.id::VARCHAR
+      JOIN courses c ON es.course_id = c.id::VARCHAR
+      WHERE c.teacher_id::VARCHAR = $1
         AND es.exam_date >= $2
         AND es.exam_date <= $3
     `, [teacherId, timeWindow.startDate, timeWindow.endDate])
 
-    // 获取考勤记录
+    // 获取考勤记录（示例查询）
     const attendanceRecords = await this.dbService.query(`
-      SELECT ar.*, s.name as student_name, c.name as course_name
+      SELECT ar.*
       FROM attendance_records ar
-      JOIN students s ON ar.student_id = s.id
-      JOIN courses c ON ar.course_id = c.id
-      WHERE c.teacher_id = $1
+      JOIN courses c ON CAST(c.id AS VARCHAR) = ar.course_id
+      WHERE c.teacher_id::VARCHAR = $1
         AND ar.date >= $2
         AND ar.date <= $3
     `, [teacherId, timeWindow.startDate, timeWindow.endDate])
@@ -603,17 +602,17 @@ export class AIAnalysisEngine {
     const students = await this.dbService.query(`
       SELECT DISTINCT s.*
       FROM students s
-      JOIN courses c ON c.id IN (
-        SELECT course_id FROM course_students WHERE student_id = s.id
+      JOIN courses c ON c.id::VARCHAR IN (
+        SELECT course_id FROM course_students WHERE student_id = s.id::VARCHAR
       )
-      WHERE c.teacher_id = $1
+      WHERE c.teacher_id::VARCHAR = $1
     `, [teacherId])
 
     return {
       evaluationRecords,
       examScores,
       attendanceRecords,
-      students: students.rows
+      students,
     }
   }
 
@@ -1217,7 +1216,7 @@ export class AIAnalysisEngine {
       'SELECT * FROM teachers WHERE id = $1',
       [teacherId]
     )
-    return result.rows[0] || null
+    return result[0] || null
   }
 
   /**
@@ -1236,7 +1235,7 @@ export class AIAnalysisEngine {
     }
 
     const result = await this.dbService.query(query, params)
-    return result.rows.map((row: any) => row.teacher_id)
+    return result.map((row: any) => row.teacher_id)
   }
 
   /**

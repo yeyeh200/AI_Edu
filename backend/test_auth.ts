@@ -22,7 +22,7 @@ const presetAccounts = [
   { username: 'zhang_teacher', password: 'zhang123', role: 'teacher', name: '张老师' },
 ]
 
-async function testAccountLogin(account: { username: string; password: string; role: string; name: string }) {
+async function testAccountLogin(account: { username: string; password: string; role: string; name: string }): Promise<boolean> {
   console.log(`📝 测试账户: ${account.username} (${account.name})`)
 
   try {
@@ -58,17 +58,19 @@ async function testAccountLogin(account: { username: string; password: string; r
         console.log(`  ❌ 登出失败: ${logoutResult.message}`)
       }
 
+      return true
+
     } else {
       console.log(`  ❌ 登录失败: ${loginResult.message}`)
       if (loginResult.error) {
         console.log(`  🔍 错误代码: ${loginResult.error}`)
       }
+      return false
     }
   } catch (error: any) {
     console.log(`  💥 测试异常: ${error.message}`)
+    return false
   }
-
-  console.log('')
 }
 
 async function runTests() {
@@ -78,11 +80,13 @@ async function runTests() {
   let failCount = 0
 
   for (const account of presetAccounts) {
-    await testAccountLogin(account)
+    const success = await testAccountLogin(account)
 
-    // 简单的结果统计（这里可以根据实际登录结果来统计）
-    // 由于我们没有真实数据库连接，暂时假设都能成功
-    successCount++
+    if (success) {
+      successCount++
+    } else {
+      failCount++
+    }
   }
 
   console.log('📊 测试结果统计')

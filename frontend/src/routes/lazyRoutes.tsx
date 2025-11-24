@@ -75,6 +75,10 @@ const SettingsPage = lazy(() => import('@/pages/Settings/Settings').then(module 
   default: module.Settings
 })));
 
+const AnalysisPage = lazy(() => import('@/pages/Analysis').then(module => ({
+  default: module.Analysis
+})));
+
 const ProfilePage = lazy(() => import('@/pages/Profile/Profile').then(module => ({
   default: module.Profile
 })));
@@ -146,6 +150,10 @@ export const lazyRoutes = [
       preloadAnalytics();
       return null;
     },
+  },
+  {
+    path: '/analysis',
+    element: AnalysisPage,
   },
   {
     path: '/reports',

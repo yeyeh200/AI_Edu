@@ -1,42 +1,54 @@
 import { User, ActivityLog } from '@/types'
 
+import { Pool } from 'postgres'
+import { config } from '@/config/config'
+
 export class DatabaseService {
-  private connectionString: string
+  private pool: Pool
 
   constructor() {
-    // 从环境变量或配置文件获取数据库连接字符串
-    this.connectionString = Deno.env.get('DATABASE_URL') ||
-      'postgresql://postgres:postgres123@localhost:5432/ai_evaluation'
+    this.pool = new Pool({
+      hostname: config.database.host,
+      port: config.database.port,
+      database: config.database.name,
+      user: config.database.user,
+      password: config.database.password,
+      tls: config.database.ssl ? { enabled: true } : undefined,
+    }, config.database.maxConnections)
   }
 
   /**
    * 执行数据库查询
    */
-  private async query<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+  public async query<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+    const client = await this.pool.connect()
     try {
-      const result = await this.executeSql(sql, params)
-      return result.rows || []
+      const result = await client.queryObject<T>(sql, params)
+      return result.rows
     } catch (error) {
       console.error('Database query error:', error)
       throw error
+    } finally {
+      client.release()
     }
   }
 
   /**
    * 执行单个SQL语句
    */
-  private async executeSql(sql: string, params: any[] = []) {
-    // 这里应该使用实际的PostgreSQL客户端
-    // 由于在Deno环境中，我们模拟数据库操作
-    console.log(`Executing SQL: ${sql}`)
-    if (params.length > 0) {
-      console.log('Parameters:', params)
-    }
-
-    // 模拟返回结果
-    return {
-      rows: [],
-      rowCount: 0
+  public async executeSql(sql: string, params: any[] = []) {
+    const client = await this.pool.connect()
+    try {
+      const result = await client.queryArray(sql, params)
+      return {
+        rows: result.rows,
+        rowCount: result.rowCount
+      }
+    } catch (error) {
+      console.error('Database execution error:', error)
+      throw error
+    } finally {
+      client.release()
     }
   }
 
@@ -49,7 +61,7 @@ export class DatabaseService {
         id, username, email, password_hash, name, role, avatar,
         is_active, is_verified, created_at, updated_at, last_login_at
       FROM users
-      WHERE username = $1 AND deleted_at IS NULL
+      WHERE username = $1
     `
 
     const users = await this.query<User>(sql, [username])
@@ -65,7 +77,7 @@ export class DatabaseService {
         id, username, email, password_hash, name, role, avatar,
         is_active, is_verified, created_at, updated_at, last_login_at
       FROM users
-      WHERE id = $1 AND deleted_at IS NULL
+      WHERE id = $1
     `
 
     const users = await this.query<User>(sql, [id])
@@ -118,7 +130,7 @@ export class DatabaseService {
     const sql = `
       INSERT INTO activity_logs (
         activity_type, activity_name, description, user_id, username, user_role,
-        status, ip_address, user_agent, request_method, request_url, metadata, created_at
+        status, ip_address, user_agent, request_method, request_url, metadata, activity_time
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP
       )
@@ -132,7 +144,7 @@ export class DatabaseService {
       logData.username,
       logData.userRole,
       logData.status,
-      logData.ipAddress || '',
+      logData.ipAddress || null,
       logData.userAgent || '',
       logData.requestMethod || '',
       logData.requestUrl || '',
@@ -153,10 +165,10 @@ export class DatabaseService {
     const sql = `
       SELECT
         id, activity_type, activity_name, description, user_id, username, user_role,
-        status, ip_address, user_agent, request_method, request_url, metadata, created_at
+        status, ip_address, user_agent, request_method, request_url, metadata, activity_time as created_at
       FROM activity_logs
       WHERE user_id = $1
-      ORDER BY created_at DESC
+      ORDER BY activity_time DESC
       LIMIT $2 OFFSET $3
     `
 
@@ -174,7 +186,7 @@ export class DatabaseService {
     let sql = `
       SELECT
         id, activity_type, activity_name, description, user_id, username, user_role,
-        status, ip_address, user_agent, request_method, request_url, metadata, created_at
+        status, ip_address, user_agent, request_method, request_url, metadata, activity_time as created_at
       FROM activity_logs
     `
 
@@ -185,7 +197,7 @@ export class DatabaseService {
       params.push(activityType)
     }
 
-    sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2} `
+    sql += ` ORDER BY activity_time DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2} `
     params.push(limit, offset)
 
     return await this.query<ActivityLog>(sql, params)
@@ -294,7 +306,7 @@ export class DatabaseService {
         id, username, email, name, role, avatar, is_active, is_verified,
         created_at, updated_at, last_login_at
       FROM users
-      WHERE deleted_at IS NULL
+      WHERE 1=1
     `
 
     const params: any[] = []
@@ -321,7 +333,7 @@ export class DatabaseService {
   async deleteUser(userId: number): Promise<void> {
     const sql = `
       UPDATE users
-      SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      SET is_active = false, updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
     `
 
@@ -351,13 +363,13 @@ export class DatabaseService {
     teacherCount: number
     todayActivityCount: number
   }> {
-    const userCountSql = `SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL`
-    const activeUserCountSql = `SELECT COUNT(*) as count FROM users WHERE is_active = true AND deleted_at IS NULL`
-    const adminCountSql = `SELECT COUNT(*) as count FROM users WHERE role = 'admin' AND deleted_at IS NULL`
-    const teacherCountSql = `SELECT COUNT(*) as count FROM users WHERE role = 'teacher' AND deleted_at IS NULL`
+    const userCountSql = `SELECT COUNT(*) as count FROM users`
+    const activeUserCountSql = `SELECT COUNT(*) as count FROM users WHERE is_active = true`
+    const adminCountSql = `SELECT COUNT(*) as count FROM users WHERE role = 'admin'`
+    const teacherCountSql = `SELECT COUNT(*) as count FROM users WHERE role = 'teacher'`
     const todayActivityCountSql = `
       SELECT COUNT(*) as count FROM activity_logs
-      WHERE created_at >= CURRENT_DATE
+      WHERE activity_time >= CURRENT_DATE
     `
 
     const [userCount, activeUserCount, adminCount, teacherCount, todayActivityCount] = await Promise.all([

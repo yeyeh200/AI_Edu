@@ -1,8 +1,8 @@
 import { Context, Next } from 'hono'
-import { jwt, sign } from 'jwt'
-import { config } from '@/config/config'
-import { AuthService } from '@/services/authService'
-import { AuthContext } from '@/types'
+import { verify } from 'jwt'
+import { config } from '@/config/config.ts'
+import { AuthService } from '@/services/authService.ts'
+import { AuthContext } from '@/types/index.ts'
 
 const authService = new AuthService()
 
@@ -22,10 +22,16 @@ export const authMiddleware = async (c: Context, next: Next) => {
     const token = authHeader.replace('Bearer ', '')
 
     // 验证JWT令牌
-    const payload = await jwt.verify(token, config.jwt.secret, {
-      issuer: config.jwt.issuer,
-      audience: config.jwt.audience,
-    })
+    const encoder = new TextEncoder()
+    const keyData = encoder.encode(config.jwt.secret)
+    const key = await crypto.subtle.importKey(
+      'raw',
+      keyData,
+      { name: 'HMAC', hash: 'SHA-512' },
+      true,
+      ['sign', 'verify']
+    )
+    const payload = await verify(token, key)
 
     if (!payload) {
       return c.json({
@@ -112,10 +118,16 @@ export const optionalAuthMiddleware = async (c: Context, next: Next) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.replace('Bearer ', '')
 
-      const payload = await jwt.verify(token, config.jwt.secret, {
-        issuer: config.jwt.issuer,
-        audience: config.jwt.audience,
-      })
+      const encoder = new TextEncoder()
+      const keyData = encoder.encode(config.jwt.secret)
+      const key = await crypto.subtle.importKey(
+        'raw',
+        keyData,
+        { name: 'HMAC', hash: 'SHA-512' },
+        true,
+        ['sign', 'verify']
+      )
+      const payload = await verify(token, key)
 
       if (payload) {
         const user = await authService.getUserById(payload.userId as number)

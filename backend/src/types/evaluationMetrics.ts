@@ -3,7 +3,7 @@
  * 定义教学评价各种指标的计算逻辑和数据结构
  */
 
-import { EvaluationRecord, EvaluationDimension } from '@/types/database'
+import { EvaluationRecord, EvaluationDimension } from '@/types/index.ts'
 
 /**
  * 指标计算方法
