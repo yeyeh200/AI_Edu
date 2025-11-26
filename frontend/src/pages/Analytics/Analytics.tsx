@@ -66,7 +66,8 @@ export const Analytics: React.FC = () => {
       if (!response.ok) {
         throw new Error('获取分析数据失败');
       }
-      return response.json();
+      const result = await response.json();
+      return result.data; // 提取ApiResponse中的data字段
     },
   });
 
@@ -77,7 +78,8 @@ export const Analytics: React.FC = () => {
       if (!response.ok) {
         throw new Error('获取部门数据失败');
       }
-      return response.json();
+      const result = await response.json();
+      return result.data; // 提取ApiResponse中的data字段
     },
   });
 
@@ -139,7 +141,12 @@ export const Analytics: React.FC = () => {
     );
   }
 
-  const data = analyticsData!;
+  const data = analyticsData || {
+    overview: { totalEvaluations: 0, averageScore: 0, participationRate: 0, completionRate: 0 },
+    trends: { monthly: [], departments: [], scoreDistribution: [] },
+    topPerformers: [],
+    improvementAreas: []
+  };
 
   return (
     <div className="space-y-6">
@@ -188,7 +195,7 @@ export const Analytics: React.FC = () => {
               className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
             >
               <option value="">所有部门</option>
-              {departments?.map((dept) => (
+              {Array.isArray(departments) && departments.map((dept) => (
                 <option key={dept} value={dept}>
                   {dept}
                 </option>
@@ -214,7 +221,7 @@ export const Analytics: React.FC = () => {
                     总评价数
                   </dt>
                   <dd className="text-lg font-semibold text-gray-900">
-                    {data.overview.totalEvaluations.toLocaleString()}
+                    {data.overview?.totalEvaluations?.toLocaleString() || '0'}
                   </dd>
                 </dl>
               </div>
@@ -236,7 +243,7 @@ export const Analytics: React.FC = () => {
                     平均分
                   </dt>
                   <dd className="text-lg font-semibold text-gray-900">
-                    {data.overview.averageScore.toFixed(1)}
+                    {(data.overview?.averageScore || 0).toFixed(1)}
                   </dd>
                 </dl>
               </div>
@@ -258,7 +265,7 @@ export const Analytics: React.FC = () => {
                     参与率
                   </dt>
                   <dd className="text-lg font-semibold text-gray-900">
-                    {(data.overview.participationRate * 100).toFixed(1)}%
+                    {((data.overview?.participationRate || 0) * 100).toFixed(1)}%
                   </dd>
                 </dl>
               </div>
@@ -280,7 +287,7 @@ export const Analytics: React.FC = () => {
                     完成率
                   </dt>
                   <dd className="text-lg font-semibold text-gray-900">
-                    {(data.overview.completionRate * 100).toFixed(1)}%
+                    {((data.overview?.completionRate || 0) * 100).toFixed(1)}%
                   </dd>
                 </dl>
               </div>
@@ -295,7 +302,7 @@ export const Analytics: React.FC = () => {
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">月度趋势</h3>
           <div className="space-y-3">
-            {data.trends.monthly.map((item) => (
+            {(data.trends?.monthly || []).map((item) => (
               <div key={item.month} className="border-b border-gray-200 pb-3 last:border-0">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium text-gray-900">{item.month}</span>
@@ -327,7 +334,7 @@ export const Analytics: React.FC = () => {
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">部门表现</h3>
           <div className="space-y-3">
-            {data.trends.departments.map((dept) => (
+            {(data.trends?.departments || []).map((dept) => (
               <div key={dept.department} className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
@@ -355,7 +362,7 @@ export const Analytics: React.FC = () => {
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">分数分布</h3>
           <div className="space-y-3">
-            {data.trends.scoreDistribution.map((item) => (
+            {(data.trends?.scoreDistribution || []).map((item) => (
               <div key={item.range}>
                 <div className="flex justify-between text-sm">
                   <span className="font-medium text-gray-900">{item.range}</span>
@@ -376,7 +383,7 @@ export const Analytics: React.FC = () => {
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">优秀教师</h3>
           <div className="space-y-3">
-            {data.topPerformers.map((teacher, index) => (
+            {(data.topPerformers || []).map((teacher, index) => (
               <div key={teacher.teacherId} className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
@@ -407,7 +414,7 @@ export const Analytics: React.FC = () => {
       <div className="bg-white shadow rounded-lg p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">改进建议</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.improvementAreas.map((area, index) => (
+          {(data.improvementAreas || []).map((area, index) => (
             <div key={index} className="border border-gray-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-sm font-medium text-gray-900">{area.aspect}</h4>

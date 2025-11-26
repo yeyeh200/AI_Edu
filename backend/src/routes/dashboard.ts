@@ -20,24 +20,24 @@ dashboard.get('/stats', async (c) => {
     const studentsResult = await dbService.query('SELECT COUNT(*) as count FROM students')
     const totalStudents = studentsResult[0]?.count || 0
 
-    // 查询评价记录总数（作为分析结果的近似值）
-    const evaluationsResult = await dbService.query('SELECT COUNT(*) as count FROM evaluation_records')
+    // 查询评价结果总数（作为分析结果的近似值）
+    const evaluationsResult = await dbService.query('SELECT COUNT(*) as count FROM evaluation_results')
     const totalAnalysisResults = evaluationsResult[0]?.count || 0
 
-    // 查询平均评分
-    const avgScoreResult = await dbService.query('SELECT AVG(overall_score) as avg_score FROM evaluation_records WHERE overall_score IS NOT NULL')
+    // 查询平均评分（使用学生评价表）
+    const avgScoreResult = await dbService.query('SELECT AVG(rating) as avg_score FROM student_evaluations WHERE rating IS NOT NULL')
     const averageScore = avgScoreResult[0]?.avg_score || 0
 
     // 查询最近活动（最近10条评价记录）
     const recentActivitiesResult = await dbService.query(`
-      SELECT 
-        er.id,
-        er.created_at,
+      SELECT
+        se.id,
+        se.created_at,
         t.name as teacher_name,
-        er.overall_score
-      FROM evaluation_records er
-      LEFT JOIN teachers t ON er.teacher_id = t.id::VARCHAR
-      ORDER BY er.created_at DESC
+        se.rating as overall_score
+      FROM student_evaluations se
+      LEFT JOIN teachers t ON se.teacher_id = t.teacher_code
+      ORDER BY se.created_at DESC
       LIMIT 10
     `)
 
@@ -87,8 +87,8 @@ dashboard.get('/charts/:type', async (c) => {
     switch (chartType) {
       case 'scores-over-time': {
         const rows = await dbService.query(`
-          SELECT date_trunc('day', created_at) AS day, AVG(overall_score) AS avg_score
-          FROM evaluation_records
+          SELECT date_trunc('day', created_at) AS day, AVG(rating) AS avg_score
+          FROM student_evaluations
           WHERE created_at >= NOW() - INTERVAL '30 days'
           GROUP BY day
           ORDER BY day ASC
@@ -128,6 +128,87 @@ dashboard.get('/charts/:type', async (c) => {
       code: 500,
       timestamp: new Date().toISOString(),
     }
+    return c.json(response, 500)
+  }
+})
+
+// 获取趋势数据
+dashboard.get('/trends', async (c) => {
+  try {
+    // 获取过去30天的评价趋势
+    const trendsData = await dbService.query(`
+      SELECT
+        date_trunc('day', created_at) AS day,
+        COUNT(*) as evaluation_count,
+        AVG(rating) as avg_score
+      FROM student_evaluations
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY day
+      ORDER BY day ASC
+    `)
+
+    const response: ApiResponse = {
+      success: true,
+      data: trendsData.map((trend: any) => ({
+        date: trend.day,
+        evaluations: Number(trend.evaluation_count),
+        averageScore: Number(trend.avg_score || 0).toFixed(2)
+      })),
+      message: '趋势数据获取成功'
+    }
+
+    return c.json(response, 200)
+  } catch (error: any) {
+    const response: ApiResponse = {
+      success: false,
+      message: error.message || '趋势数据获取失败',
+      error: 'TRENDS_QUERY_FAILED'
+    }
+
+    return c.json(response, 500)
+  }
+})
+
+// 获取绩效数据
+dashboard.get('/performance', async (c) => {
+  try {
+    // 获取教师绩效数据
+    const performanceData = await dbService.query(`
+      SELECT
+        t.name as teacher_name,
+        t.teacher_code,
+        COUNT(se.id) as evaluation_count,
+        AVG(se.rating) as avg_score,
+        MAX(se.rating) as max_score,
+        MIN(se.rating) as min_score
+      FROM teachers t
+      LEFT JOIN student_evaluations se ON t.teacher_code = se.teacher_id
+      GROUP BY t.id, t.name, t.teacher_code
+      ORDER BY avg_score DESC NULLS LAST
+      LIMIT 10
+    `)
+
+    const response: ApiResponse = {
+      success: true,
+      data: performanceData.map((perf: any) => ({
+        teacherName: perf.teacher_name,
+        teacherId: perf.teacher_code,
+        evaluationCount: Number(perf.evaluation_count),
+        averageScore: Number(perf.avg_score || 0).toFixed(2),
+        maxScore: Number(perf.max_score || 0),
+        minScore: Number(perf.min_score || 0)
+      })),
+      message: '绩效数据获取成功'
+    }
+
+    return c.json(response, 200)
+  } catch (error: any) {
+    const response: ApiResponse = {
+      success: false,
+      message: error.message || '绩效数据获取失败',
+      error: 'PERFORMANCE_QUERY_FAILED'
+    }
+
     return c.json(response, 500)
   }
 })

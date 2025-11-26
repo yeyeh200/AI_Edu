@@ -22,7 +22,7 @@ export const config = {
     password: Deno.env.get('DB_PASSWORD') || 'password',
     ssl: Deno.env.get('DB_SSL') === 'true',
     connectionTimeout: 30000,
-    maxConnections: 5, // further reduced pool size
+    maxConnections: 2, // minimal pool size to avoid connection exhaustion
   },
 
   jwt: {
@@ -36,6 +36,7 @@ export const config = {
   cors: {
     origins: Deno.env.get('CORS_ORIGINS')?.split(',') || [
       'http://localhost:3000',
+      'http://localhost:3005',
       'http://localhost:5173',
     ],
   },

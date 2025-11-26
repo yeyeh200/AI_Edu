@@ -88,6 +88,19 @@ export const BarChart: React.FC<BarChartProps> = ({
   dataLabelPosition = 'top',
   ...props
 }) => {
+  // Validate and sanitize data
+  const sanitizedData = (data || []).map(item => {
+    const sanitizedItem = { ...item };
+    // Ensure all numeric values are finite numbers
+    Object.keys(sanitizedItem).forEach(key => {
+      const value = sanitizedItem[key];
+      if (typeof value === 'number' && (isNaN(value) || !isFinite(value))) {
+        sanitizedItem[key] = 0;
+      }
+    });
+    return sanitizedItem;
+  });
+
   const defaultMargin = {
     top: title ? 40 : margin.top,
     right: margin.right,
@@ -101,22 +114,28 @@ export const BarChart: React.FC<BarChartProps> = ({
 
     if (!showDataLabels) return null;
 
+    // Validate coordinates
+    const safeX = isNaN(x) || !isFinite(x) ? 0 : x;
+    const safeY = isNaN(y) || !isFinite(y) ? 0 : y;
+    const safeWidth = isNaN(width) || !isFinite(width) ? 0 : width;
+    const safeHeight = isNaN(height) || !isFinite(height) ? 0 : height;
+
     const textAnchor = dataLabelPosition === 'center' ? 'middle' : 'middle';
     const dominantBaseline = dataLabelPosition === 'top' ? 'auto' :
                            dataLabelPosition === 'center' ? 'middle' : 'hanging';
 
-    let yPos = y;
+    let yPos = safeY;
     if (dataLabelPosition === 'top') {
-      yPos = y - 5;
+      yPos = safeY - 5;
     } else if (dataLabelPosition === 'center') {
-      yPos = y + height / 2;
+      yPos = safeY + safeHeight / 2;
     } else {
-      yPos = y + height + 15;
+      yPos = safeY + safeHeight + 15;
     }
 
     return (
       <text
-        x={x + width / 2}
+        x={safeX + safeWidth / 2}
         y={yPos}
         fill="#374151"
         textAnchor={textAnchor}
@@ -140,7 +159,7 @@ export const BarChart: React.FC<BarChartProps> = ({
 
       <ResponsiveContainer width={width} height={height}>
         <RechartsBarChart
-          data={data}
+          data={sanitizedData}
           margin={defaultMargin}
           layout={layout}
           {...props}

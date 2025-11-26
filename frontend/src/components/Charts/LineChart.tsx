@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Fragment } from 'react';
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -95,6 +95,19 @@ export const LineChart: React.FC<LineChartProps> = ({
   gradient = false,
   ...props
 }) => {
+  // Validate and sanitize data
+  const sanitizedData = (data || []).map(item => {
+    const sanitizedItem = { ...item };
+    // Ensure all numeric values are finite numbers
+    Object.keys(sanitizedItem).forEach(key => {
+      const value = sanitizedItem[key];
+      if (typeof value === 'number' && (isNaN(value) || !isFinite(value))) {
+        sanitizedItem[key] = 0;
+      }
+    });
+    return sanitizedItem;
+  });
+
   const defaultMargin = {
     top: title ? 40 : margin.top,
     right: margin.right,
@@ -128,13 +141,15 @@ export const LineChart: React.FC<LineChartProps> = ({
 
       <ResponsiveContainer width={width} height={height}>
         <ChartComponent
-          data={data}
+          data={sanitizedData}
           margin={defaultMargin}
           {...props}
         >
           {/* Gradients */}
           {gradient && lines.map((line, index) => (
-            renderGradient(line.stroke || '#3b82f6', `gradient-${index}`)
+            <Fragment key={`gradient-${index}`}>
+              {renderGradient(line.stroke || '#3b82f6', `gradient-${index}`)}
+            </Fragment>
           ))}
 
           {/* Grid */}

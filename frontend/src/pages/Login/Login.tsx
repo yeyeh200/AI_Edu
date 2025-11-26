@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -31,7 +31,7 @@ export const Login: React.FC = () => {
     try {
       setError(null);
       await login(data.username, data.password);
-      navigate({ to: '/dashboard' });
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || '登录失败，请检查用户名和密码');
     }

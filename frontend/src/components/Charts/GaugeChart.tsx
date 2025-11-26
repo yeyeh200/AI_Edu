@@ -58,7 +58,10 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
   animationBegin = 0,
   animationDuration = 800,
 }) => {
-  const percentage = Math.min((value / maxValue) * 100, 100);
+  // Validate and calculate percentage safely
+  const safeValue = isNaN(value) || !isFinite(value) ? 0 : Number(value);
+  const safeMaxValue = isNaN(maxValue) || !isFinite(maxValue) || maxValue === 0 ? 1 : Number(maxValue);
+  const percentage = Math.min((safeValue / safeMaxValue) * 100, 100);
   const angle = startAngle + (endAngle - startAngle) * (percentage / 100);
 
   // Determine color based on value
@@ -124,9 +127,14 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
     if (showScale && scaleMarkers) {
       return scaleMarkers.map((marker, index) => {
         const RADIAN = Math.PI / 180;
-        const radius = outerRadius + 10;
-        const x = cx + radius * Math.cos(-marker.angle * RADIAN);
-        const y = cy + radius * Math.sin(-marker.angle * RADIAN);
+        const radius = (outerRadius || 80) + 10;
+        const x = (cx || 0) + radius * Math.cos(-marker.angle * RADIAN);
+        const y = (cy || 0) + radius * Math.sin(-marker.angle * RADIAN);
+
+        // Skip if coordinates are invalid
+        if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
+          return null;
+        }
 
         return (
           <text
@@ -201,7 +209,7 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
             style={{ top: '45%' }}
           >
             <div className="text-3xl font-bold text-gray-900">
-              {value}
+              {safeValue.toFixed(1)}
               {unit && <span className="text-lg text-gray-600 ml-1">{unit}</span>}
             </div>
             <div className="text-sm text-gray-500 mt-1">

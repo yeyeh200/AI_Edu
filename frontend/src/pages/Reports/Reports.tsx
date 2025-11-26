@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate, Outlet } from 'react-router-dom';
 import {
   DocumentArrowDownIcon,
   EyeIcon,
@@ -43,6 +44,7 @@ interface GeneratedReport {
 }
 
 export const Reports: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'templates' | 'history'>('templates');
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [reportParameters, setReportParameters] = useState<Record<string, any>>({});
@@ -54,7 +56,8 @@ export const Reports: React.FC = () => {
       if (!response.ok) {
         throw new Error('获取报表模板失败');
       }
-      return response.json();
+      const result = await response.json();
+      return result.data.templates || []; // 提取ApiResponse中的data字段
     },
   });
 
@@ -65,7 +68,8 @@ export const Reports: React.FC = () => {
       if (!response.ok) {
         throw new Error('获取报表历史失败');
       }
-      return response.json();
+      const result = await response.json();
+      return result.data || []; // 提取ApiResponse中的data字段
     },
   });
 
@@ -76,7 +80,8 @@ export const Reports: React.FC = () => {
       if (!response.ok) {
         throw new Error('获取筛选选项失败');
       }
-      return response.json();
+      const result = await response.json();
+      return result.data; // 提取ApiResponse中的data字段
     },
   });
 
@@ -137,6 +142,11 @@ export const Reports: React.FC = () => {
     } catch (error) {
       alert('下载报表失败，请重试');
     }
+  };
+
+  const viewReportDetails = (reportId: string) => {
+    console.log('🔍 Viewing report details for ID:', reportId);
+    navigate(`/reports/${reportId}`);
   };
 
   const getTemplateIcon = (type: string) => {
@@ -297,7 +307,8 @@ export const Reports: React.FC = () => {
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">配置报表参数</h3>
                   <div className="bg-gray-50 rounded-lg p-6">
-                    {templates?.find(t => t.id === selectedTemplate)?.parameters.map((param) => (
+                    {templates?.find(t => t.id === selectedTemplate)?.parameters?.length > 0 ? (
+                      templates?.find(t => t.id === selectedTemplate)?.parameters?.map((param) => (
                       <div key={param.key} className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           {param.label}
@@ -355,7 +366,11 @@ export const Reports: React.FC = () => {
                           </select>
                         )}
                       </div>
-                    ))}
+                    ))) : (
+                      <p className="text-gray-500 text-center py-4">
+                        该报表模板暂无可配置参数，将使用默认设置生成报表。
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -408,19 +423,19 @@ export const Reports: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div>
                               <div className="text-sm font-medium text-gray-900">
-                                {report.title}
+                                {report.title || '未知报表'}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {report.templateName}
+                                {report.templateName || '未知模板'}
                               </div>
                               <div className="text-xs text-gray-400">
-                                生成者: {report.generatedBy}
+                                生成者: {report.generatedBy || '系统'}
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                              {report.format.toUpperCase()}
+                              {report.format?.toUpperCase() || 'EXCEL'}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -446,6 +461,7 @@ export const Reports: React.FC = () => {
                                 </button>
                               )}
                               <button
+                                onClick={() => viewReportDetails(report.id)}
                                 className="text-blue-600 hover:text-blue-900"
                                 title="查看详情"
                               >
@@ -473,6 +489,9 @@ export const Reports: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Nested routes outlet - renders ReportViewer when navigating to /reports/:reportId */}
+      <Outlet />
     </div>
   );
 };

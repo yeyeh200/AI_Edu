@@ -20,40 +20,16 @@ const ErrorPage = () => (
 );
 
 // Lazy loaded components for code splitting
-const DashboardPage = lazy(() => import('@/pages/Dashboard/Dashboard').then(module => ({
-  default: module.Dashboard
-})));
-
 const EnhancedDashboard = lazy(() => import('@/pages/Dashboard/EnhancedDashboard').then(module => ({
   default: module.EnhancedDashboard
 })));
 
-const LoginPage = lazy(() => import('@/pages/Login').then(module => ({
+const LoginPage = lazy(() => import('@/pages/Login/Login').then(module => ({
   default: module.Login
 })));
 
-const TeachersPage = lazy(() => import('@/pages/Teachers/Teachers').then(module => ({
-  default: module.Teachers
-})));
-
-const TeacherDetailPage = lazy(() => import('@/pages/Teachers/TeacherDetailPage').then(module => ({
-  default: module.TeacherDetailPage
-})));
-
-const CoursesPage = lazy(() => import('@/pages/Courses/Courses').then(module => ({
-  default: module.Courses
-})));
-
-const CourseDetailPage = lazy(() => import('@/pages/Courses/CourseDetailPage').then(module => ({
-  default: module.CourseDetailPage
-})));
-
-const ClassesPage = lazy(() => import('@/pages/Classes/Classes').then(module => ({
-  default: module.Classes
-})));
-
-const ClassDetailPage = lazy(() => import('@/pages/Classes/ClassDetailPage').then(module => ({
-  default: module.ClassDetailPage
+const DataPage = lazy(() => import('@/pages/Data/DataPage').then(module => ({
+  default: module.DataPage
 })));
 
 const AnalyticsPage = lazy(() => import('@/pages/Analytics/Analytics').then(module => ({
@@ -67,25 +43,13 @@ const ReportsPage = lazy(() => import('@/pages/Reports/Reports').then(module => 
 const ReportBuilder = lazy(() => import('@/pages/Reports/ReportBuilder').then(module => ({
   default: module.ReportBuilder
 })));
+
 const ReportViewer = lazy(() => import('@/pages/Reports/ReportViewer').then(module => ({
   default: module.ReportViewer
 })));
 
-const SettingsPage = lazy(() => import('@/pages/Settings/Settings').then(module => ({
-  default: module.Settings
-})));
-
-const AnalysisPage = lazy(() => import('@/pages/Analysis').then(module => ({
-  default: module.Analysis
-})));
-
-const ProfilePage = lazy(() => import('@/pages/Profile/Profile').then(module => ({
-  default: module.Profile
-})));
-
 // Preloading functions for critical routes
 export const preloadDashboard = () => {
-  import('@/pages/Dashboard/Dashboard');
   import('@/pages/Dashboard/EnhancedDashboard');
 };
 
@@ -101,7 +65,7 @@ export const preloadAnalytics = () => {
 export const lazyRoutes = [
   {
     path: '/',
-    element: DashboardPage,
+    element: EnhancedDashboard,
     loader: () => {
       preloadDashboard();
       return null;
@@ -120,28 +84,8 @@ export const lazyRoutes = [
     element: LoginPage,
   },
   {
-    path: '/teachers',
-    element: TeachersPage,
-  },
-  {
-    path: '/teachers/:teacherId',
-    element: TeacherDetailPage,
-  },
-  {
-    path: '/courses',
-    element: CoursesPage,
-  },
-  {
-    path: '/courses/:courseId',
-    element: CourseDetailPage,
-  },
-  {
-    path: '/classes',
-    element: ClassesPage,
-  },
-  {
-    path: '/classes/:classId',
-    element: ClassDetailPage,
+    path: '/data',
+    element: DataPage,
   },
   {
     path: '/analytics',
@@ -150,10 +94,6 @@ export const lazyRoutes = [
       preloadAnalytics();
       return null;
     },
-  },
-  {
-    path: '/analysis',
-    element: AnalysisPage,
   },
   {
     path: '/reports',
@@ -174,14 +114,6 @@ export const lazyRoutes = [
     },
   },
   {
-    path: '/settings',
-    element: SettingsPage,
-  },
-  {
-    path: '/profile',
-    element: ProfilePage,
-  },
-  {
     path: '/404',
     element: NotFoundPage,
   },
@@ -193,12 +125,10 @@ export const lazyRoutes = [
 
 // Chunk loading utilities
 export const chunkLoader = {
-  loadDashboard: () => import(/* webpackChunkName: "dashboard" */ '@/pages/Dashboard/Dashboard'),
+  loadDashboard: () => import(/* webpackChunkName: "dashboard" */ '@/pages/Dashboard/EnhancedDashboard'),
+  loadData: () => import(/* webpackChunkName: "data" */ '@/pages/Data/DataPage'),
   loadReports: () => import(/* webpackChunkName: "reports" */ '@/pages/Reports/Reports'),
   loadAnalytics: () => import(/* webpackChunkName: "analytics" */ '@/pages/Analytics/Analytics'),
-  loadTeachers: () => import(/* webpackChunkName: "teachers" */ '@/pages/Teachers/Teachers'),
-  loadCourses: () => import(/* webpackChunkName: "courses" */ '@/pages/Courses/Courses'),
-  loadClasses: () => import(/* webpackChunkName: "classes" */ '@/pages/Classes/Classes'),
 };
 
 // Prefetching strategies

@@ -98,7 +98,7 @@ export default defineConfig({
           'react-vendor': ['react', 'react-dom'],
 
           // Router and navigation
-          'router-vendor': ['@tanstack/react-router'],
+          'router-vendor': ['react-router-dom'],
 
           // UI component libraries
           'ui-vendor': [

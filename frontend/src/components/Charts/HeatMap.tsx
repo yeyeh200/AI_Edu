@@ -196,89 +196,145 @@ export const HeatMap: React.FC<HeatMapProps> = ({
           {showGrid && (
             <g>
               {/* Vertical lines */}
-              {xValues.map((_, index) => (
-                <line
-                  key={`vline-${index}`}
-                  x1={margin.left + index * cellSize}
-                  y1={margin.top}
-                  x2={margin.left + index * cellSize}
-                  y2={margin.top + yValues.length * cellSize}
-                  stroke="#e5e7eb"
-                  strokeWidth="1"
-                />
-              ))}
+              {xValues.map((_, index) => {
+                const x1 = margin.left + (index || 0) * cellSize;
+                const x2 = x1;
+                const y1 = margin.top;
+                const y2 = margin.top + (yValues?.length || 0) * cellSize;
+
+                // Skip if coordinates are invalid
+                if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2) ||
+                    !isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
+                  return null;
+                }
+
+                return (
+                  <line
+                    key={`vline-${index}`}
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke="#e5e7eb"
+                    strokeWidth="1"
+                  />
+                );
+              })}
               {/* Horizontal lines */}
-              {yValues.map((_, index) => (
-                <line
-                  key={`hline-${index}`}
-                  x1={margin.left}
-                  y1={margin.top + index * cellSize}
-                  x2={margin.left + xValues.length * cellSize}
-                  y2={margin.top + index * cellSize}
-                  stroke="#e5e7eb"
-                  strokeWidth="1"
-                />
-              ))}
+              {yValues.map((_, index) => {
+                const x1 = margin.left;
+                const y1 = margin.top + (index || 0) * cellSize;
+                const x2 = margin.left + (xValues?.length || 0) * cellSize;
+                const y2 = y1;
+
+                // Skip if coordinates are invalid
+                if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2) ||
+                    !isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
+                  return null;
+                }
+
+                return (
+                  <line
+                    key={`hline-${index}`}
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke="#e5e7eb"
+                    strokeWidth="1"
+                  />
+                );
+              })}
             </g>
           )}
 
           {/* Heatmap cells */}
-          {gridData.map((cell, index) => (
-            <g key={`cell-${index}`}>
-              <rect
-                x={margin.left + cell.xIndex * cellSize}
-                y={margin.top + cell.yIndex * cellSize}
-                width={cellSize}
-                height={cellSize}
-                fill={cell.color}
-                stroke="#ffffff"
-                strokeWidth="2"
-                className="hover:stroke-blue-500 hover:stroke-width-3 cursor-pointer transition-all"
-              />
-              {showValues && cell.value !== null && cell.value !== undefined && (
-                <text
-                  x={margin.left + cell.xIndex * cellSize + cellSize / 2}
-                  y={margin.top + cell.yIndex * cellSize + cellSize / 2}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={10}
-                  fontWeight={600}
-                  fill={cell.value > (maxValue + minValue) / 2 ? 'white' : '#374151'}
-                >
-                  {cell.value}
-                </text>
-              )}
-            </g>
-          ))}
+          {gridData.map((cell, index) => {
+            const x = margin.left + (cell.xIndex || 0) * cellSize;
+            const y = margin.top + (cell.yIndex || 0) * cellSize;
+
+            // Skip if coordinates are invalid
+            if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
+              return null;
+            }
+
+            return (
+              <g key={`cell-${index}`}>
+                <rect
+                  x={x}
+                  y={y}
+                  width={cellSize}
+                  height={cellSize}
+                  fill={cell.color}
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                  className="hover:stroke-blue-500 hover:stroke-width-3 cursor-pointer transition-all"
+                />
+                {showValues && cell.value !== null && cell.value !== undefined && (
+                  <text
+                    x={x + cellSize / 2}
+                    y={y + cellSize / 2}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize={10}
+                    fontWeight={600}
+                    fill={cell.value > (maxValue + minValue) / 2 ? 'white' : '#374151'}
+                  >
+                    {cell.value}
+                  </text>
+                )}
+              </g>
+            );
+          })}
 
           {/* X-axis labels */}
-          {xValues.map((label, index) => (
-            <text
-              key={`xlabel-${index}`}
-              x={margin.left + index * cellSize + cellSize / 2}
-              y={margin.top + yValues.length * cellSize + 20}
-              textAnchor="middle"
-              fontSize={12}
-              fill="#6b7280"
-            >
-              {label}
-            </text>
-          ))}
+          {xValues.map((label, index) => {
+            const x = margin.left + (index || 0) * cellSize + cellSize / 2;
+            const y = margin.top + (yValues?.length || 0) * cellSize + 20;
+
+            // Skip if coordinates are invalid
+            if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
+              return null;
+            }
+
+            return (
+              <text
+                key={`xlabel-${index}`}
+                x={x}
+                y={y}
+                textAnchor="middle"
+                fontSize={12}
+                fill="#6b7280"
+              >
+                {label}
+              </text>
+            );
+          })}
 
           {/* Y-axis labels */}
-          {yValues.map((label, index) => (
-            <text
-              key={`ylabel-${index}`}
-              x={margin.left - 10}
-              y={margin.top + index * cellSize + cellSize / 2}
-              textAnchor="end"
-              dominantBaseline="middle"
-              fontSize={12}
-              fill="#6b7280"
-            >
-              {label}
-            </text>
-          ))}
+          {yValues.map((label, index) => {
+            const x = margin.left - 10;
+            const y = margin.top + (index || 0) * cellSize + cellSize / 2;
+
+            // Skip if coordinates are invalid
+            if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
+              return null;
+            }
+
+            return (
+              <text
+                key={`ylabel-${index}`}
+                x={x}
+                y={y}
+                textAnchor="end"
+                dominantBaseline="middle"
+                fontSize={12}
+                fill="#6b7280"
+              >
+                {label}
+              </text>
+            );
+          })}
         </svg>
 
         {/* Legend */}

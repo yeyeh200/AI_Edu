@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { Outlet, useLocation } from '@tanstack/react-router';
+import { Outlet, NavLink } from 'react-router-dom';
 import {
   HomeIcon,
-  UserGroupIcon,
-  AcademicCapIcon,
-  BuildingOfficeIcon,
+  ServerIcon,
   ChartBarIcon,
   DocumentTextIcon,
   Cog6ToothIcon,
@@ -22,18 +20,14 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   console.log('Layout rendering');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const location = useLocation();
   const { user, logout } = useAuthStore();
 
   const navigation = [
     { name: '仪表盘', href: '/dashboard', icon: HomeIcon },
-    { name: 'AI分析', href: '/analysis', icon: ChartBarIcon },
-    { name: '教师管理', href: '/teachers', icon: UserGroupIcon },
-    { name: '课程管理', href: '/courses', icon: AcademicCapIcon },
-    { name: '班级管理', href: '/classes', icon: BuildingOfficeIcon },
-    { name: '评价分析', href: '/evaluations', icon: ChartBarIcon },
-    { name: '数据报表', href: '/reports', icon: DocumentTextIcon },
-    { name: '系统设置', href: '/settings', icon: Cog6ToothIcon, adminOnly: true },
+    { name: '数据管理', href: '/data', icon: ServerIcon },
+    { name: 'AI分析', href: '/analytics', icon: ChartBarIcon },
+    { name: '报表中心', href: '/reports', icon: DocumentTextIcon },
+    { name: '系统管理', href: '/system', icon: Cog6ToothIcon, adminOnly: true },
   ];
 
   const filteredNavigation = navigation.filter(item =>
@@ -65,25 +59,32 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             <nav className="mt-8 px-2 space-y-1">
               {filteredNavigation.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <a
-                    key={item.name}
-                    href={item.href}
-                    className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive
-                      ? 'bg-primary-100 text-primary-900'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                      }`}
-                  >
-                    <item.icon
-                      className={`mr-3 h-6 w-6 flex-shrink-0 ${isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
+              return (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  className={({ isActive }) =>
+                    `group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                      isActive
+                        ? 'bg-primary-100 text-primary-900'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <item.icon
+                        className={`mr-3 h-6 w-6 flex-shrink-0 ${
+                          isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
                         }`}
-                      aria-hidden="true"
-                    />
-                    {item.name}
-                  </a>
-                );
-              })}
+                        aria-hidden="true"
+                      />
+                      {item.name}
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
             </nav>
           </div>
           <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
@@ -116,23 +117,30 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
           <nav className="mt-8 flex-1 px-2 space-y-1">
             {filteredNavigation.map((item) => {
-              const isActive = location.pathname === item.href;
               return (
-                <a
+                <NavLink
                   key={item.name}
-                  href={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive
-                    ? 'bg-primary-100 text-primary-900'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
+                  to={item.href}
+                  className={({ isActive }) =>
+                    `group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                      isActive
+                        ? 'bg-primary-100 text-primary-900'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`
+                  }
                 >
-                  <item.icon
-                    className={`mr-3 h-6 w-6 flex-shrink-0 ${isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
-                      }`}
-                    aria-hidden="true"
-                  />
-                  {item.name}
-                </a>
+                  {({ isActive }) => (
+                    <>
+                      <item.icon
+                        className={`mr-3 h-6 w-6 flex-shrink-0 ${
+                          isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'
+                        }`}
+                        aria-hidden="true"
+                      />
+                      {item.name}
+                    </>
+                  )}
+                </NavLink>
               );
             })}
           </nav>

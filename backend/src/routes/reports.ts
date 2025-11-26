@@ -13,22 +13,64 @@ reports.get('/templates', async (c) => {
                 id: '1',
                 name: '教师评价综合报表',
                 description: '包含教师评价的各维度统计和趋势分析',
-                category: 'teacher',
-                createdAt: new Date().toISOString()
+                type: 'teacher',
+                format: 'excel',
+                category: 'performance',
+                parameters: [
+                    {
+                        key: 'timeRange',
+                        label: '时间范围',
+                        type: 'select',
+                        options: ['最近一周', '最近一月', '本学期', '本学年'],
+                        required: true
+                    },
+                    {
+                        key: 'departments',
+                        label: '部门筛选',
+                        type: 'multiselect',
+                        options: ['信息工程学院', '计算机学院', '理学院', '外语学院'],
+                        required: false
+                    }
+                ]
             },
             {
                 id: '2',
                 name: '课程质量分析报表',
                 description: '分析课程的整体质量和学生反馈',
-                category: 'course',
-                createdAt: new Date().toISOString()
+                type: 'course',
+                format: 'pdf',
+                category: 'analysis',
+                parameters: [
+                    {
+                        key: 'startDate',
+                        label: '开始日期',
+                        type: 'date',
+                        required: true
+                    },
+                    {
+                        key: 'endDate',
+                        label: '结束日期',
+                        type: 'date',
+                        required: true
+                    }
+                ]
             },
             {
                 id: '3',
                 name: '学期总结报表',
                 description: '学期内所有教学活动的总结分析',
+                type: 'system',
+                format: 'word',
                 category: 'summary',
-                createdAt: new Date().toISOString()
+                parameters: [
+                    {
+                        key: 'semester',
+                        label: '学期',
+                        type: 'select',
+                        options: ['春季学期', '秋季学期'],
+                        required: true
+                    }
+                ]
             }
         ]
 
@@ -55,32 +97,41 @@ reports.get('/templates', async (c) => {
 // 获取已生成的报表列表
 reports.get('/generated', async (c) => {
     try {
-        // 查询评价记录作为示例报表
+        // 查询学生评价记录作为示例报表
         const reportsResult = await dbService.query(`
-      SELECT 
-        er.id,
-        er.created_at,
+      SELECT
+        se.id,
+        se.created_at,
         t.name as teacher_name,
-        er.overall_score,
+        se.rating as overall_score,
         'teacher_evaluation' as type
-      FROM evaluation_records er
-      LEFT JOIN teachers t ON er.teacher_id = t.id::VARCHAR
-      ORDER BY er.created_at DESC
+      FROM student_evaluations se
+      LEFT JOIN teachers t ON se.teacher_id = t.teacher_code
+      ORDER BY se.created_at DESC
       LIMIT 20
     `)
 
         const generatedReports = reportsResult.map((report: any) => ({
             id: report.id,
             name: `${report.teacher_name || '未知教师'} - 评价报表`,
+            templateId: '1',
+            templateName: '教师评价综合报表',
+            title: `${report.teacher_name || '未知教师'} - 评价报表`,
+            parameters: {},
             type: report.type,
-            createdAt: report.created_at,
+            format: 'excel',
             status: 'completed',
-            score: report.overall_score
+            score: report.overall_score,
+            fileSize: Math.floor(Math.random() * 1024 * 1024), // 随机文件大小
+            downloadUrl: `/api/reports/download/${report.id}`,
+            generatedBy: '系统管理员',
+            generatedAt: report.created_at,
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7天后过期
         }))
 
         const response: ApiResponse = {
             success: true,
-            data: { reports: generatedReports },
+            data: generatedReports,
             message: '已生成报表列表获取成功',
         }
 
@@ -178,10 +229,10 @@ reports.get('/download/:reportId', async (c) => {
   try {
     const reportId = c.req.param('reportId')
     const rows = await dbService.query(`
-      SELECT er.id, er.created_at, t.name as teacher_name, er.overall_score
-      FROM evaluation_records er
-      LEFT JOIN teachers t ON er.teacher_id = t.id::VARCHAR
-      WHERE er.id = $1
+      SELECT se.id, se.created_at, t.name as teacher_name, se.rating as overall_score
+      FROM student_evaluations se
+      LEFT JOIN teachers t ON se.teacher_id = t.teacher_code
+      WHERE se.id = $1
     `, [reportId])
 
     if (!rows.length) {

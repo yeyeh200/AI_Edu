@@ -22,6 +22,8 @@ import { evaluationMetricsRoutes } from '@/routes/evaluationMetrics.ts'
 import { analysisRoutes } from '@/routes/analysis.ts'
 import { dataRoutes } from '@/routes/data.ts'
 import { dashboardRoutes } from '@/routes/dashboard.ts'
+import { evaluationsRoutes } from '@/routes/evaluations.ts'
+import { analyticsRoutes } from '@/routes/analytics.ts'
 import { systemRoutes } from '@/routes/system.ts'
 import { reportsRoutes } from '@/routes/reports.ts'
 import teachers from '@/routes/teachers.ts'
@@ -36,7 +38,25 @@ app.use('*', async (c: Context, next: Next) => {
   logger.info(`${c.req.method} ${c.req.url} - ${c.res.status} - ${duration}ms`)
 })
 app.use('*', cors({
-  origin: config.cors.origins,
+  origin: (origin, c) => {
+    // 允许的源列表
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3005',
+      'http://localhost:5173',
+    ]
+
+    // 如果没有Origin头，返回true（允许请求）
+    if (!origin) return true
+
+    // 如果Origin在允许列表中，返回该origin
+    if (allowedOrigins.includes(origin)) {
+      return origin
+    }
+
+    // 否则拒绝
+    return false
+  },
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
@@ -66,6 +86,8 @@ app.route('/api/evaluation-metrics', evaluationMetricsRoutes)
 app.route('/api/analysis', analysisRoutes)
 app.route('/api/data', dataRoutes)
 app.route('/api/dashboard', dashboardRoutes)
+app.route('/api/evaluations', evaluationsRoutes)
+app.route('/api/analytics', analyticsRoutes)
 app.route('/api/system', systemRoutes)
 app.route('/api/reports', reportsRoutes)
 app.route('/api/teachers', teachers)
@@ -79,6 +101,8 @@ app.route('/v1/evaluation-metrics', evaluationMetricsRoutes)
 app.route('/v1/analysis', analysisRoutes)
 app.route('/v1/data', dataRoutes)
 app.route('/v1/dashboard', dashboardRoutes)
+app.route('/v1/evaluations', evaluationsRoutes)
+app.route('/v1/analytics', analyticsRoutes)
 app.route('/v1/system', systemRoutes)
 app.route('/v1/reports', reportsRoutes)
 app.route('/v1/teachers', teachers)
@@ -89,7 +113,7 @@ app.onError(errorHandler)
 
 // 启动服务器
 const port = 8000
-console.log(`🚀 AI助评系统后端服务启动成功`)
+console.log(`🚀 AI助评系统后端服务启动成功 (Analytics enabled)`)
 console.log(`📍 服务地址: http://localhost:${port}`)
 console.log(`🌍 环境: development`)
 console.log(`📊 版本: 1.0.0`)

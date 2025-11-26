@@ -1,11 +1,230 @@
-# AI助评系统MVP项目记忆
+# CLAUDE.md
 
-## 项目概述
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**项目名称**: AI助评系统MVP
-**业务目标**: 实现教学评估的智能化，核心流程是"数据集成 → AI分析 →结果可视化"
-**技术栈**: Deno + Hono + React + TypeScript + Tailwind CSS + PostgreSQL + Supabase
-**开发周期**: 9.5周
+始终用中文输出思考过程和回答
+
+## Project Overview
+
+AI助评系统 (AI Evaluation System) - An intelligent teaching evaluation platform that implements "data integration → AI analysis → result visualization" workflow.
+
+**Architecture**: Full-stack application with React frontend and Deno/Hono backend
+**Database**: PostgreSQL with Supabase integration
+**Core Business Flow**: Data Integration → AI Analysis → Result Visualization
+**Key Stakeholders**: Administrators, Teachers, Students
+**Development Phase**: MVP focused on core functionality validation
+
+## Development Commands
+
+### Frontend (React + Vite)
+```bash
+cd frontend
+
+# Development
+npm run dev                # Start dev server (http://localhost:5173)
+npm run build             # Build for production
+npm run preview           # Preview production build
+
+# Code Quality
+npm run lint              # ESLint check
+npm run lint:fix          # Auto-fix ESLint issues
+npm run format            # Prettier formatting
+npm run type-check        # TypeScript type checking
+
+# Testing
+npm run test              # Run unit tests
+npm run test:coverage     # Run tests with coverage
+npm run test:integration  # Integration tests
+npm run test:e2e          # End-to-end tests with Playwright
+
+# Build Variants
+npm run build:staging     # Staging environment build
+npm run build:production  # Production environment build
+```
+
+### Backend (Deno + Hono)
+```bash
+cd backend
+
+# Development
+deno task dev             # Start with hot reload
+deno task start           # Start production server
+deno task check           # Type checking
+
+# Testing
+deno task test            # Run unit tests
+deno task test:coverage   # Run tests with coverage
+
+# Individual Module Tests
+deno task test:auth              # Authentication tests
+deno task test:zhijiaoyun        # Zhijiaoyun integration tests
+deno task test:dataCollection    # Data collection tests
+deno task test:aiAnalysis        # AI analysis tests
+```
+
+### System Operations
+```bash
+# Start entire system
+./start-system.sh        # Start all services (frontend + backend + database)
+./start-system.sh status # Check system status
+
+# Database
+cd database
+./scripts/migrate.sh     # Run database migrations
+./scripts/setup_database.sh # Setup database schema
+
+# Docker deployment
+docker-compose up -d     # Start all services with Docker
+```
+
+## Architecture Overview
+
+### Directory Structure
+```
+├── frontend/                 # React frontend application
+│   ├── src/
+│   │   ├── components/       # Reusable UI components
+│   │   ├── pages/           # Page-level components
+│   │   ├── services/        # API integration layer
+│   │   ├── stores/          # Zustand state management
+│   │   ├── types/           # TypeScript type definitions
+│   │   └── utils/           # Utility functions
+│   ├── tests/               # Frontend test suite
+│   └── deployment/          # Frontend deployment configs
+├── backend/                 # Deno + Hono backend
+│   ├── src/
+│   │   ├── routes/          # API route handlers
+│   │   ├── services/        # Business logic layer
+│   │   ├── repositories/    # Data access layer
+│   │   ├── middleware/      # Request middleware
+│   │   └── models/          # Data models
+│   └── tests/               # Backend test suite
+├── database/                # Database schema and migrations
+│   ├── migrations/          # SQL migration files
+│   └── scripts/             # Database utility scripts
+└── docs/                    # Comprehensive documentation
+    ├── 00原始数据表/         # Original data specifications
+    ├── 01需求分析文档/       # Requirements analysis
+    └── 设计文档_MVP/         # MVP design documents
+```
+
+### Key Architectural Patterns
+
+**Frontend Architecture:**
+- **State Management**: Zustand for global state, React Query for server state
+- **Routing**: React Router with lazy loading for performance
+- **UI Framework**: Tailwind CSS with custom component library
+- **Forms**: React Hook Form with Zod validation
+- **Data Fetching**: Axios with centralized API configuration
+
+**Backend Architecture:**
+- **Framework**: Hono for fast, lightweight API development
+- **Authentication**: JWT-based stateless authentication
+- **Database**: PostgreSQL with type-safe query patterns
+- **External Integrations**: Modular service architecture for Zhijiaoyun, etc.
+- **Error Handling**: Centralized error middleware with structured responses
+
+### Data Flow Architecture
+1. **Data Integration Layer**: Collects data from Zhijiaoyun,教务系统, 竞赛系统
+2. **Data Processing**: ETL pipelines with quality control and validation
+3. **AI Analysis Engine**: Rule-based evaluation with configurable metrics
+4. **Visualization Layer**: Real-time dashboards and exportable reports
+
+## Core Business Workflows
+
+### MVP Core Functionality
+The system implements these essential workflows:
+
+1. **User Authentication Flow**
+   - Simple authentication with preset accounts (admin/admin123, teacher/teacher123)
+   - Role-based access control (Administrator vs Teacher views)
+
+2. **Data Integration Flow**
+   - External API integration (Zhijiaoyun platform)
+   - Data quality validation and error handling
+   - Incremental synchronization mechanisms
+
+3. **AI Analysis Flow**
+   - Configurable evaluation rules engine
+   - Multi-dimensional quality metrics calculation
+   - Batch processing capabilities
+
+4. **Result Visualization Flow**
+   - Real-time dashboard with multiple chart types
+   - Report generation and export functionality
+   - Responsive design for different screen sizes
+
+### Key Data Entities
+- **Users**: Administrative users and teaching staff
+- **Courses**: Course information with enrollment data
+- **Evaluations**: Teaching quality assessments
+- **Metrics**: Calculated quality indicators
+- **Reports**: Generated analysis outputs
+
+## Development Guidelines
+
+### Workflow Requirements (Critical)
+Before starting any development task:
+1. **Ask clarifying questions**: Understand business goals, current progress, and required documentation
+2. **Read core documents**: Check requirements and architecture documents in `docs/设计文档_MVP/`
+3. **Consistency check**: Ensure implementation matches design specifications
+
+### Quality Standards
+- **Code Quality**: TypeScript strict mode, ESLint + Prettier formatting
+- **Test Coverage**: Minimum 80% unit test coverage
+- **Documentation**: All APIs documented, complex logic commented
+- **Performance**: Response times under 2 seconds, optimized bundle sizes
+
+### Integration Patterns
+- Use TypeScript interfaces for all data contracts
+- Implement proper error boundaries in React components
+- Follow REST API conventions for backend endpoints
+- Maintain separation of concerns between layers
+
+## Documentation References
+
+### Essential Documents (Always Read First)
+- `docs/01需求分析文档/AI助评应用软件需求规格说明书(SRS).md` - System requirements
+- `docs/设计文档_MVP/01-需求与范围/01-MVP需求规格说明书.md` - MVP scope definition
+- `docs/设计文档_MVP/02-架构设计/01-系统架构设计.md` - Technical architecture
+- `docs/设计文档_MVP/04-API设计/01-API接口规范.md` - API specifications
+
+### Design Documentation
+- `docs/设计文档_MVP/05-UI设计/01-UI设计规范.md` - UI/UX guidelines
+- `docs/设计文档_MVP/07-测试设计/01-测试策略设计.md` - Testing strategy
+- `docs/设计文档_MVP/08-部署设计/01-部署架构设计.md` - Deployment architecture
+
+### Data Specifications
+- `docs/00原始数据表/` - Original data table specifications from all source systems
+- `docs/01需求分析文档/用户故事/` - Detailed user stories and acceptance criteria
+
+## Testing Strategy
+
+### Test Organization
+- **Unit Tests**: Component-level testing with Vitest/Testing Library
+- **Integration Tests**: API endpoint and service layer testing
+- **E2E Tests**: Critical user workflows with Playwright
+- **Performance Tests**: Load testing for concurrent users
+
+### Test Data Management
+- Use test fixtures for consistent test data
+- Mock external API responses for reliable testing
+- Database transactions rolled back after each test
+
+## Deployment Configuration
+
+### Environment Setup
+- **Development**: Local development with hot reload
+- **Staging**: Pre-production environment with production-like data
+- **Production**: Containerized deployment with Docker
+
+### Docker Configuration
+- Multi-stage builds for optimized production images
+- Environment-specific configurations via environment variables
+- Health checks and graceful shutdown handling
+
+---
+*Remember: This is an MVP project focused on core workflow validation. Prioritize working features over comprehensive scope.*
 
 ## 核心工作流程规则
 

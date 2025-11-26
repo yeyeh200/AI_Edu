@@ -1,10 +1,11 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { useAuthStore } from '@/stores/authStore'
 import { ApiResponse } from '@/types'
+import { errorHandler } from './errorHandler'
 
 // 创建axios实例
 const apiClient: AxiosInstance = axios.create({
-  baseURL: '/api',
+  baseURL: 'http://localhost:8000/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -52,14 +53,10 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
-    console.error('[API Response Error]', {
-      url: originalRequest?.url,
-      method: originalRequest?.method,
-      status: error.response?.status,
-      message: error.message,
-    })
+    // 使用统一错误处理
+    const apiError = errorHandler.handleApiError(error)
 
-    // 处理401未授权错误
+    // 处理401未授权错误的token刷新逻辑
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
 
@@ -69,7 +66,7 @@ apiClient.interceptors.response.use(
         // 尝试刷新token
         const token = authStore.token
         if (token) {
-          const refreshResponse = await axios.post('/api/auth/refresh', {}, {
+          const refreshResponse = await axios.post('http://localhost:8000/api/auth/refresh', {}, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
@@ -98,15 +95,8 @@ apiClient.interceptors.response.use(
       window.location.href = '/login'
     }
 
-    // 处理网络错误
-    if (!error.response) {
-      console.error('[Network Error]', error.message)
-      throw new Error('网络连接失败，请检查网络设置')
-    }
-
-    // 处理其他HTTP错误
-    const errorMessage = error.response.data?.message || error.message || '请求失败'
-    throw new Error(errorMessage)
+    // 抛出处理后的错误
+    throw apiError
   }
 )
 
